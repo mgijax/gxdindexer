@@ -37,7 +37,8 @@ public class Fetcher {
 		log.info("Cleared caches in " + this.toString());
 	}
 
-	// get a GxdMarker object for each non-withdrawn mouse marker
+	// get a GxdMarker object for each non-withdrawn mouse marker (for
+	// markers with expression-related data (classical, RNA-Seq, lit) )
 	public Map<String,GxdMarker> getMouseMarkers() throws SQLException {
 		// if we already looked them up, just return from cache
 		if (this.markers != null) {
@@ -62,7 +63,15 @@ public class Fetcher {
                         + " m.marker_key = band.marker_key "
                         + " and band.location_type = 'cytogenetic') "
                         + "where m.organism = 'mouse' "
-                        + " and m.status != 'withdrawn'";
+                        + " and m.status != 'withdrawn' "
+			+ "and ( "
+			+ " exists (select 1 from expression_result_summary s "
+			+ "  where m.marker_key = s.marker_key) "
+			+ " or exists (select 1 from expression_ht_consolidated_sample_measurement s "
+			+ "  where m.marker_key = s.marker_key) "
+			+ " or exists (select 1 from expression_index s " 
+			+ "  where m.marker_key = s.marker_key) "
+			+ ")";
 
                 log.info("About to retrieve GxdMarkers");
                 ResultSet rs = this.sql.executeProto(cmd);
@@ -87,14 +96,23 @@ public class Fetcher {
 		return this.markers;
 	}
 
-	// get an ordered list of keys for official mouse markers
+	// get an ordered list of keys for official mouse markers that have
+	// expression data (classical, RNA-Seq, or literature)
 	public List<Integer> getMouseMarkerKeys() throws SQLException {
 		List<Integer> keys = new ArrayList<Integer>();
 
 		log.info("About to collect marker keys");
-		String cmd = "select marker_key "
-			+ "from marker "
-			+ "where organism = 'mouse' and status = 'official' "
+		String cmd = "select m.marker_key "
+			+ "from marker m "
+			+ "where m.organism = 'mouse' and m.status = 'official' "
+			+ "and ( "
+			+ "exists (select 1 from expression_result_summary s "
+			+ "  where m.marker_key = s.marker_key) "
+			+ "or exists (select 1 from expression_ht_consolidated_sample_measurement s "
+			+ "  where m.marker_key = s.marker_key) "
+			+ "or exists (select 1 from expression_index s " 
+			+ "  where m.marker_key = s.marker_key) "
+			+ ")"
 			+ "order by marker_key";
 
 		ResultSet rs = this.sql.executeProto(cmd);

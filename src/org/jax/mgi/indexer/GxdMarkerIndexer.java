@@ -41,7 +41,7 @@ public class GxdMarkerIndexer extends Indexer {
 	private List<Integer> markerKeys;
 
 	// number of markers to process in a batch
-	private int batchSize = 2000;
+	private int batchSize = 2500;
 
 	// map of mouse markers we're currently working on (used to build docs)
 	private Map<String,MarkerInfo> markerInfo;
@@ -329,18 +329,27 @@ public class GxdMarkerIndexer extends Indexer {
 		logger.info("Working with " + markerCount + " markers");
 
 		int batchNum = 1;
-		String batchCount = new Double(Math.ceil(markerCount / this.batchSize)).toString().replaceAll("\\..*", "");
-		int startPos = 0;
-		int endPos = 0;		// will initialize in loop
+		String batchCount = new Double(1 + Math.ceil(markerCount / this.batchSize)).toString().replaceAll("\\..*", "");
+
+		// indexes into this.markerKeys
+		int startPos = 0;	// start of this slice
+		int endPos = 0;		// end of this slice; will initialize in loop
+		// marker keys at the corresponding positions
+		// Note: slice is >= startKey and < endKey
+		int startKey = this.markerKeys.get(startPos);
+		int endKey = startKey + 1;
 
 		while (startPos < markerCount) {
-			endPos = Math.min(startPos + this.batchSize, markerCount - 1);
+			endPos = startPos + this.batchSize;
 
-			// Handle the odd case where the endPos falls directly
-			// on the markerCount -- need to go one beyond the
-			// startKey so the queries work okay.
-			int startKey = this.markerKeys.get(startPos);
-			int endKey = Math.max(this.markerKeys.get(endPos), startKey + 1);
+			// For most slices, we can look up the marker key
+			// from the array.  For the last one, it's too far.
+			// In that case, just go beyond the last one.
+			if (endPos < markerCount) {
+				endKey = this.markerKeys.get(endPos);
+			} else {
+				endKey = 1 + this.markerKeys.get(this.markerKeys.size() - 1);
+			}
 
 			logger.info("Starting batch " + batchNum + " of " + batchCount);
 			logger.info(" - " + startKey + " <= markerKey < " + endKey);
@@ -353,12 +362,16 @@ public class GxdMarkerIndexer extends Indexer {
 			logger.info(" - finished batch " + batchNum);
 
 			startPos = endPos;
+			startKey = endKey;
 			batchNum++;
 		}
 		ex.cleanup();
 		logger.info("Closed database connection");
 
-		writeDocs(docs);
+		if (docs.size() > 0) {
+			writeDocs(docs);
+			logger.info("Wrote last docs to Solr");
+		}
 		commit();
 		logger.info("Closed Solr connections");
 	} // end index() method
