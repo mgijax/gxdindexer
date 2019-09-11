@@ -334,7 +334,7 @@ public class GxdMarkerIndexer extends Indexer {
 		int endPos = 0;		// will initialize in loop
 
 		while (startPos < markerCount) {
-			endPos = Math.min(startPos + this.batchSize, markerCount);
+			endPos = Math.min(startPos + this.batchSize, markerCount - 1);
 
 			// Handle the odd case where the endPos falls directly
 			// on the markerCount -- need to go one beyond the
