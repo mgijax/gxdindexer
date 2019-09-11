@@ -1,0 +1,10 @@
+build
+gxdindexer.config
+lib/fe.jar
+dist/
+bin/buildAllIndexes
+conf/config.props
+.DS_Store
+build
+config.props
+*~

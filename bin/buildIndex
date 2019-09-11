@@ -1,0 +1,61 @@
+#!/bin/sh
+
+# Name: buildIndex
+# Purpose: build a single index, specified on the command-line
+
+USAGE="Usage: $0 <index name> [<min memory in Gb>] [<max memory in Gb>]
+"
+
+# check number of parameters
+
+if [ $# -lt 1 ]; then
+    echo $USAGE
+    echo "Error: missing index name"
+    exit 1
+fi
+
+# ensure that we're in the bin/ directory
+
+cd `dirname $0`
+
+# import the general gxdindexer config file
+
+INDEX_CONFIG=../gxdindexer.config
+
+if [ ! -r ${INDEX_CONFIG} ]
+then
+    echo "Cannot read configuration file: ${INDEX_CONFIG}" | tee -a ${LOG}
+    exit 1
+fi
+. ${INDEX_CONFIG}
+
+# get memory settings
+
+MIN_MEM=2
+MAX_MEM=4
+
+if [ $# -gt 1 ]; then
+    MIN_MEM=$2
+
+    if [ $# -gt 2 ]; then
+	MAX_MEM=$3
+    fi
+fi
+
+# prepare the memory settings for the JVM
+
+MEMORY_ARGS="-d64 -Xms${MIN_MEM}g -Xmx${MAX_MEM}g -XX:-UseParallelGC"
+
+# set up the classpath for the JVM
+
+CLASSPATH=$INSTALL_DIR/dist/gxdindexer.jar:$LIB_DIR/*
+export CLASSPATH
+
+# map the index name to its Java class
+
+INDEX_CLASS="$1"
+
+# run the indexer
+
+${JAVA_HOME}/bin/java -classpath $CLASSPATH $MEMORY_ARGS org.jax.mgi.gxdindexer.indexer.Main $INDEX_CLASS 
+exit $?

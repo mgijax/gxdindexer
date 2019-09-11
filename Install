@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+#  Install
+###########################################################################
+#
+#  Purpose:  This script invokes the Ant utility to perform the build for
+#            this product.
+#
+#  Usage:  Install
+#
+###########################################################################
+
+cd `dirname $0`
+
+. ./gxdindexer.config
+
+if [ ! -d ${FILE_DIR} ]
+then
+    mkdir -p ${FILE_DIR}
+fi
+
+if [ ! -d ${LOG_DIR} ]
+then
+    mkdir -p ${LOG_DIR}
+fi
+
+cd bin
+if [ -h buildAllIndexes ]; then
+    rm buildAllIndexes
+fi
+ln -s ${BUILD_SCRIPT} buildAllIndexes
+cd ..
+
+${ANT}

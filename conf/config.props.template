@@ -1,0 +1,6 @@
+index.url={BASE_URL}
+
+mgd.user={DB_USER}
+mgd.password={DB_PASSWORD}
+mgd.JDBC.url=jdbc:postgresql://{DB_SERVER}/{DB_DATABASE}
+database.JDBC.driver=org.postgresql.Driver

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# builds all Solr indexes sequentially, rather than in parallel
+# (helps for machines with low available RAM)
+
+uptime
+
+echo "Building all indexes"
+./buildIndex all 2 6 || { echo "building indexes failed"; exit 1; }
+
+#done
+echo "Successfully completed"
