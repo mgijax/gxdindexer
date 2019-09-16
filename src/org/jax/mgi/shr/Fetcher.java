@@ -20,6 +20,7 @@ public class Fetcher {
 	private SQLExecutor sql;
 	private Map<String,Map<String,VocabTerm>> vocabs = new HashMap<String,Map<String,VocabTerm>>();
 	private Map<String,GxdMarker> markers;
+	private Map<String,List<String>> markerSynonyms;
 	
 	// hide the default constructor
 	private Fetcher() {}
@@ -34,7 +35,39 @@ public class Fetcher {
 	public void clearCaches() {
 		this.vocabs = new HashMap<String,Map<String,VocabTerm>>();
 		this.markers = null;
+		this.markerSynonyms = null;
 		log.info("Cleared caches in " + this.toString());
+	}
+
+	// get a list of synonyms for each non-withdrawn mouse marker 
+	public Map<String, List<String>> getMouseMarkerSynonyms() throws SQLException {
+		// if we already looked them up, just return from cache
+		if (this.markerSynonyms != null) {
+			return this.markerSynonyms;
+		}
+
+		this.markerSynonyms = new HashMap<String, List<String>>();
+
+                String cmd = "select distinct msn.marker_key, msn.term "
+                        + "from marker_searchable_nomenclature msn "
+                        + "inner join marker m on (msn.marker_key = m.marker_key) "
+                        + "where msn.term_type in ('synonym','related synonym') "
+                        + " and m.organism = 'mouse' "
+                        + " and m.status != 'withdrawn' ";
+
+                log.info("About to retrieve marker synonyms");
+                ResultSet rs = this.sql.executeProto(cmd);
+
+                while (rs.next()) {
+			String markerKey = rs.getString("marker_key");
+			if (!markerSynonyms.containsKey(markerKey)) {
+				markerSynonyms.put(markerKey, new ArrayList<String>());
+			}
+			markerSynonyms.get(markerKey).add(rs.getString("term"));
+                }
+                rs.close();
+                log.info(" - Cached synonyms for " + this.markerSynonyms.size() + " markers");
+		return this.markerSynonyms;
 	}
 
 	// get a GxdMarker object for each non-withdrawn mouse marker (for
@@ -63,15 +96,7 @@ public class Fetcher {
                         + " m.marker_key = band.marker_key "
                         + " and band.location_type = 'cytogenetic') "
                         + "where m.organism = 'mouse' "
-                        + " and m.status != 'withdrawn' "
-			+ "and ( "
-			+ " exists (select 1 from expression_result_summary s "
-			+ "  where m.marker_key = s.marker_key) "
-			+ " or exists (select 1 from expression_ht_consolidated_sample_measurement s "
-			+ "  where m.marker_key = s.marker_key) "
-			+ " or exists (select 1 from expression_index s " 
-			+ "  where m.marker_key = s.marker_key) "
-			+ ")";
+                        + " and m.status != 'withdrawn' ";
 
                 log.info("About to retrieve GxdMarkers");
                 ResultSet rs = this.sql.executeProto(cmd);
@@ -98,7 +123,7 @@ public class Fetcher {
 
 	// get an ordered list of keys for official mouse markers that have
 	// expression data (classical, RNA-Seq, or literature)
-	public List<Integer> getMouseMarkerKeys() throws SQLException {
+	public List<Integer> getGxdMouseMarkerKeys() throws SQLException {
 		List<Integer> keys = new ArrayList<Integer>();
 
 		log.info("About to collect marker keys");

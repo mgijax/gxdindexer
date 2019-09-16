@@ -18,6 +18,10 @@ import org.jax.mgi.shr.fe.query.SolrLocationTranslator;
 import org.jax.mgi.gxddatamodel.GxdMarker;
 import org.jax.mgi.gxdindexer.shr.VocabTerm;
 import org.jax.mgi.gxdindexer.shr.Fetcher;
+import org.jax.mgi.gxdindexer.shr.MarkerMPCache;
+import org.jax.mgi.gxdindexer.shr.MarkerGOCache;
+import org.jax.mgi.gxdindexer.shr.MarkerDOCache;
+import org.jax.mgi.gxdindexer.shr.MarkerTypeCache;
 
 public class GxdMarkerIndexer extends Indexer {
 
@@ -27,8 +31,10 @@ public class GxdMarkerIndexer extends Indexer {
 	// used to fetch some standard items for cache
 	private Fetcher fetcher;
 
-	// cache of basic marker data
+	// cache of basic marker data and marker synonyms for all non-withdrawn
+	// mouse markers
 	private Map<String, GxdMarker> markers;
+	private Map<String, List<String>> markerSynonyms;
 
 	// caches of basic vocabulary term data
 	private Map<String, VocabTerm> goTerms;
@@ -37,8 +43,15 @@ public class GxdMarkerIndexer extends Indexer {
 	private Map<String, VocabTerm> emapaTerms;
 	private Map<String, VocabTerm> emapsTerms;
 
-	// ordered list of marker keys for official mouse markers
-	private List<Integer> markerKeys;
+	// caches of annotated terms (and their parents) per marker
+        public MarkerMPCache markerMpCache = null;
+        public MarkerGOCache markerGoCache = null;
+        public MarkerDOCache markerDoCache = null;
+        public MarkerTypeCache markerTypeCache = null;
+
+	// ordered list of marker keys for official mouse markers that have
+	// expression data (classical, RNA-Seq, lit index)
+	private List<Integer> gxdMarkerKeys;
 
 	// number of markers to process in a batch
 	private int batchSize = 2500;
@@ -79,15 +92,20 @@ public class GxdMarkerIndexer extends Indexer {
 	}
 
 	// populate caches of standard objects
-	private void buildCaches() throws SQLException {
+	private void buildCaches() throws Exception {
 		this.fetcher = new Fetcher(ex);
 		this.markers = fetcher.getMouseMarkers();
-		this.markerKeys = fetcher.getMouseMarkerKeys();
+		this.gxdMarkerKeys = fetcher.getGxdMouseMarkerKeys();
 		this.goTerms = fetcher.getVocabTerms("GO");
 		this.doTerms = fetcher.getVocabTerms("Disease Ontology");
 		this.mpTerms = fetcher.getVocabTerms("Mammalian Phenotype");
 		this.emapaTerms = fetcher.getVocabTerms("EMAPA");
 		this.emapsTerms = fetcher.getVocabTerms("EMAPS");
+		this.markerMpCache = new MarkerMPCache();
+		this.markerGoCache = new MarkerGOCache();
+		this.markerDoCache = new MarkerDOCache();
+		this.markerTypeCache = new MarkerTypeCache();
+		this.markerSynonyms = fetcher.getMouseMarkerSynonyms();
 	}
 
 	// get the MarkerInfo object for the marker with the given ID, or a new
@@ -180,6 +198,7 @@ public class GxdMarkerIndexer extends Indexer {
 			if ("1".equals(rs.getString("is_wild_type")) || "-1".equals(rs.getString("genotype_key"))) {
 				isWildType = "wild type";
 			}
+			marker.isWildType.add(isWildType);
 		}
 		rs.close();
 		logger.info(" - finished classical data");
@@ -247,6 +266,7 @@ public class GxdMarkerIndexer extends Indexer {
 			if (null == rs.getString("combination_1")) {
 				isWildType = "wild type";
 			}
+			marker.isWildType.add(isWildType);
 		}
 		rs.close();
 		logger.info(" - finished RNA-Seq data");
@@ -257,10 +277,11 @@ public class GxdMarkerIndexer extends Indexer {
 	public void buildSolrDocs() {
 		for (String markerID : this.markerInfo.keySet()) {
 			MarkerInfo marker = this.markerInfo.get(markerID);
+			String markerKey = marker.gxdMarker.getMarkerKey().toString();
 			SolrInputDocument doc = new SolrInputDocument();
 
 			// basic marker fields
-			doc.addField(GxdResultFields.KEY, marker.gxdMarker.getMarkerKey());
+			doc.addField(GxdResultFields.KEY, markerKey);
 			doc.addField(GxdResultFields.MARKER_KEY, marker.gxdMarker.getMarkerKey());
 			doc.addField(GxdResultFields.MARKER_MGIID, marker.gxdMarker.getPrimaryID());
 			doc.addField(GxdResultFields.MARKER_SYMBOL, marker.gxdMarker.getSymbol());
@@ -270,6 +291,26 @@ public class GxdMarkerIndexer extends Indexer {
 			doc.addField(GxdResultFields.MARKER_TYPE, marker.gxdMarker.getMarkerSubType());
 			doc.addField(IndexConstants.MRK_BY_SYMBOL, marker.bySymbol);
 			doc.addField(GxdResultFields.M_BY_LOCATION, marker.byLocation);
+
+			if (this.markerSynonyms.containsKey(markerKey)) {
+				for (String synonym : markerSynonyms.get(markerKey)) {
+					doc.addField(GxdResultFields.NOMENCLATURE, synonym);
+				}
+			}
+
+			// add fields for filtering by marker-associated vocabularies
+			for (String mpTerm : markerMpCache.getTerms(markerKey)) {
+				doc.addField(GxdResultFields.MP_HEADERS, mpTerm);
+			}
+			for (String goTerm : markerGoCache.getTerms(markerKey)) {
+				doc.addField(GxdResultFields.GO_HEADERS, goTerm);
+			}
+			for (String doTerm : markerDoCache.getTerms(markerKey)) {
+				doc.addField(GxdResultFields.DO_HEADERS, doTerm);
+			}
+			for (String featureType : markerTypeCache.getTerms(markerKey)) {
+				doc.addField(GxdResultFields.FEATURE_TYPES, featureType);
+			}
 
 			// marker location fields
 
@@ -295,6 +336,7 @@ public class GxdMarkerIndexer extends Indexer {
 			doc.addField(GxdResultFields.THEILER_STAGE, marker.theilerStage);
 			doc.addField(GxdResultFields.EMAPS_ID, marker.emapsID);
 			doc.addField(GxdResultFields.IS_EXPRESSED, marker.isExpressed);
+			doc.addField(GxdResultFields.DETECTION_LEVEL, marker.isExpressed);
 			doc.addField(GxdResultFields.AGES, marker.ages);
 			doc.addField(GxdResultFields.IS_WILD_TYPE, marker.isWildType);
 			doc.addField(GxdResultFields.JNUM, marker.jnumID);
@@ -308,11 +350,11 @@ public class GxdMarkerIndexer extends Indexer {
 	}
 
 	@Override
-	public void index() throws SQLException {
+	public void index() throws Exception {
 		// build caches of standard data items (markers, vocab terms)
 		buildCaches();
 
-		// We have an ordered list of marker keys in this.markerKeys.
+		// We have an ordered list of marker keys in this.gxdMarkerKeys.
 		// Step through this in batches of size this.batchSize.
 		// For each batch:
 		// 1. get the classical data and build into marker-centric
@@ -325,18 +367,18 @@ public class GxdMarkerIndexer extends Indexer {
 		// 2. build Solr documents
 		// 3. send to Solr
 
-		int markerCount = this.markerKeys.size();
+		int markerCount = this.gxdMarkerKeys.size();
 		logger.info("Working with " + markerCount + " markers");
 
 		int batchNum = 1;
 		String batchCount = new Double(1 + Math.ceil(markerCount / this.batchSize)).toString().replaceAll("\\..*", "");
 
-		// indexes into this.markerKeys
+		// indexes into this.gxdMarkerKeys
 		int startPos = 0;	// start of this slice
 		int endPos = 0;		// end of this slice; will initialize in loop
 		// marker keys at the corresponding positions
 		// Note: slice is >= startKey and < endKey
-		int startKey = this.markerKeys.get(startPos);
+		int startKey = this.gxdMarkerKeys.get(startPos);
 		int endKey = startKey + 1;
 
 		while (startPos < markerCount) {
@@ -346,9 +388,9 @@ public class GxdMarkerIndexer extends Indexer {
 			// from the array.  For the last one, it's too far.
 			// In that case, just go beyond the last one.
 			if (endPos < markerCount) {
-				endKey = this.markerKeys.get(endPos);
+				endKey = this.gxdMarkerKeys.get(endPos);
 			} else {
-				endKey = 1 + this.markerKeys.get(this.markerKeys.size() - 1);
+				endKey = 1 + this.gxdMarkerKeys.get(this.gxdMarkerKeys.size() - 1);
 			}
 
 			logger.info("Starting batch " + batchNum + " of " + batchCount);
