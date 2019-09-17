@@ -104,9 +104,9 @@ public class VocabTermCache {
 
 		ResultSet rs2 = sql.executeProto(ancestorCmd, cursorLimit);
 		while (rs2.next()) {
-			String termID = rs.getString("term_id");
+			String termID = rs2.getString("primary_id");
 			if (this.terms.containsKey(termID)) {
-				this.terms.get(termID).addAncestorID(rs.getString("ancestor_primary_id"));
+				this.terms.get(termID).addAncestorID(rs2.getString("ancestor_primary_id"));
 			}
 		}
 		rs2.close();
