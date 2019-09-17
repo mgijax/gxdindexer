@@ -18,7 +18,7 @@ public class Fetcher {
 
 	private Logger log = Logger.getLogger(SQLExecutor.class);
 	private SQLExecutor sql;
-	private Map<String,Map<String,VocabTerm>> vocabs = new HashMap<String,Map<String,VocabTerm>>();
+	private Map<String,VocabTermCache> vocabs = new HashMap<String,VocabTermCache>();
 	private Map<String,GxdMarker> markers;
 	private Map<String,List<String>> markerSynonyms;
 	
@@ -33,7 +33,7 @@ public class Fetcher {
 
 	// clear any cached data sets
 	public void clearCaches() {
-		this.vocabs = new HashMap<String,Map<String,VocabTerm>>();
+		this.vocabs = new HashMap<String,VocabTermCache>();
 		this.markers = null;
 		this.markerSynonyms = null;
 		log.info("Cleared caches in " + this.toString());
@@ -150,52 +150,16 @@ public class Fetcher {
 		return keys;
 	}
 
-	// get a mapping from term ID to VocabTerm object for the given
-	// vocabulary name
-	public Map<String,VocabTerm> getVocabTerms(String vocabName) throws SQLException {
-		// If we've already looked up terms for this vocab, then we can just 
-		// return them from cache.
-		if (this.vocabs.containsKey(vocabName)) {
-			return this.vocabs.get(vocabName);
+	// get a VocabTermCache object for the given vocabulary name
+	public VocabTermCache getVocabTermCache(String vocabName) throws Exception {
+		if (!this.vocabs.containsKey(vocabName)) {
+			this.vocabs.put(vocabName, new VocabTermCache(vocabName, this.sql));
 		}
-
-		log.info("About to collect " + vocabName + " VocabTerms");
-		HashMap<String,VocabTerm> terms = new HashMap<String,VocabTerm>();
-
-		String cmd = "select t.term_key, t.term, t.primary_id, t.term_key, a.ancestor_primary_id "
-			+ "from term t "
-			+ "left outer join term_ancestor a on (t.term_key = a.term_key) "
-			+ "where t.vocab_name = '" + vocabName + "' "
-			+ " and t.is_obsolete = 0";
-
-		ResultSet rs = this.sql.executeProto(cmd);
-
-		while (rs.next()) {
-			String termID = rs.getString("primary_id");
-			if (!terms.containsKey(termID)) {
-				VocabTerm term = new VocabTerm();
-				term.setTermKey(rs.getInt("term_key"));
-				term.setTermID(termID);
-				term.setTerm(rs.getString("term"));
-				terms.put(termID, term);
-			}
-
-			String ancestorID = rs.getString("ancestor_primary_id");
-			if (ancestorID != null) {
-				terms.get(termID).addAncestorID(ancestorID);
-			}
-		}
-
-		rs.close();
-		log.info(" = Got Map with " + terms.size() + " VocabTerms");
-
-		// cache them for the future
-		this.vocabs.put(vocabName, terms);
-		return terms;
+		return this.vocabs.get(vocabName);
 	}
 
 	@Override
 	public String toString() {
-		return "Fetcher";
+		return "[Fetcher " + this.vocabs.size() + " vocabs]";
 	}
 }

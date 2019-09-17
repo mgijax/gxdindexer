@@ -8,7 +8,7 @@ public class VocabTerm {
 	private Integer termKey;
 	private String term;
 	private String termID;
-	private Set<String> ancestorIDs;
+	private Set<String> ancestorIDs = new HashSet<String>();
 	
 	public Integer getTermKey() {
 		return this.termKey;
@@ -32,6 +32,7 @@ public class VocabTerm {
 
 	public void setTermID(String termID) {
 		this.termID = termID;
+		this.ancestorIDs.add(termID);
 	}
 
 	public Set<String> getAncestorIDs() {
@@ -43,9 +44,6 @@ public class VocabTerm {
 	}
 
 	public void addAncestorID(String ancestorID) {
-		if (this.ancestorIDs == null) {
-			this.ancestorIDs = new HashSet<String>();
-		}
 		this.ancestorIDs.add(ancestorID);
 	}
 

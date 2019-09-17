@@ -18,6 +18,7 @@ import org.jax.mgi.shr.fe.query.SolrLocationTranslator;
 import org.jax.mgi.gxddatamodel.GxdMarker;
 import org.jax.mgi.gxdindexer.shr.VocabTerm;
 import org.jax.mgi.gxdindexer.shr.Fetcher;
+import org.jax.mgi.gxdindexer.shr.VocabTermCache;
 import org.jax.mgi.gxdindexer.shr.MarkerMPCache;
 import org.jax.mgi.gxdindexer.shr.MarkerGOCache;
 import org.jax.mgi.gxdindexer.shr.MarkerDOCache;
@@ -37,11 +38,11 @@ public class GxdMarkerIndexer extends Indexer {
 	private Map<String, List<String>> markerSynonyms;
 
 	// caches of basic vocabulary term data
-	private Map<String, VocabTerm> goTerms;
-	private Map<String, VocabTerm> doTerms;
-	private Map<String, VocabTerm> mpTerms;
-	private Map<String, VocabTerm> emapaTerms;
-	private Map<String, VocabTerm> emapsTerms;
+	private VocabTermCache goTerms;
+	private VocabTermCache doTerms;
+	private VocabTermCache mpTerms;
+	private VocabTermCache emapaTerms;
+	private VocabTermCache emapsTerms;
 
 	// caches of annotated terms (and their parents) per marker
         public MarkerMPCache markerMpCache = null;
@@ -96,11 +97,11 @@ public class GxdMarkerIndexer extends Indexer {
 		this.fetcher = new Fetcher(ex);
 		this.markers = fetcher.getMouseMarkers();
 		this.gxdMarkerKeys = fetcher.getGxdMouseMarkerKeys();
-		this.goTerms = fetcher.getVocabTerms("GO");
-		this.doTerms = fetcher.getVocabTerms("Disease Ontology");
-		this.mpTerms = fetcher.getVocabTerms("Mammalian Phenotype");
-		this.emapaTerms = fetcher.getVocabTerms("EMAPA");
-		this.emapsTerms = fetcher.getVocabTerms("EMAPS");
+		this.goTerms = fetcher.getVocabTermCache("GO");
+		this.doTerms = fetcher.getVocabTermCache("Disease Ontology");
+		this.mpTerms = fetcher.getVocabTermCache("Mammalian Phenotype");
+		this.emapaTerms = fetcher.getVocabTermCache("EMAPA");
+		this.emapsTerms = fetcher.getVocabTermCache("EMAPS");
 		this.markerMpCache = new MarkerMPCache();
 		this.markerGoCache = new MarkerGOCache();
 		this.markerDoCache = new MarkerDOCache();
