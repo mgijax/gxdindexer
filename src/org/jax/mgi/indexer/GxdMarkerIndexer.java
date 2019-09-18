@@ -42,7 +42,7 @@ public class GxdMarkerIndexer extends Indexer {
 	private VocabTermCache doTerms;
 	private VocabTermCache mpTerms;
 	private VocabTermCache emapaTerms;
-	private VocabTermCache emapsTerms;
+	protected VocabTermCache emapsTerms;
 
 	// caches of annotated terms (and their parents) per marker
         public MarkerMPCache markerMpCache = null;
@@ -336,6 +336,7 @@ public class GxdMarkerIndexer extends Indexer {
 			doc.addField(GxdResultFields.ASSAY_TYPE, marker.assayType);
 			doc.addField(GxdResultFields.THEILER_STAGE, marker.theilerStage);
 			doc.addField(GxdResultFields.EMAPS_ID, marker.emapsID);
+			doc.addField(GxdResultFields.STRUCTURE_ID, getStructureAndAncestorIDs(marker.emapsID));
 			doc.addField(GxdResultFields.IS_EXPRESSED, marker.isExpressed);
 			doc.addField(GxdResultFields.DETECTION_LEVEL, marker.isExpressed);
 			doc.addField(GxdResultFields.AGES, marker.ages);
@@ -348,6 +349,24 @@ public class GxdMarkerIndexer extends Indexer {
 				docs = new ArrayList<SolrInputDocument>();
 			}
 		}
+	}
+
+	// convert an EMAPS ID to its EMAPA equivalent by trimming off the
+	// stage at the end (2 digits) and 
+	private String convertToEmapaID(String emapsID) {
+		return emapsID.replace("EMAPS", "EMAPA").substring(0, emapsID.length() - 2);
+	}
+
+	// get the annotated EMAPS IDs and all of their ancestor IDs that
+	// can be used to retrieve this marker
+	private Set<String> getStructureAndAncestorIDs(Set<String> emapsIDs) {
+		Set<String> all = new HashSet<String>();
+		for (String annotatedID : emapsIDs) {
+			for (String ancestor : this.emapsTerms.getTerm(annotatedID).getAncestorIDs()) {
+				all.add(convertToEmapaID(ancestor));
+			}
+		}
+		return all;
 	}
 
 	@Override
