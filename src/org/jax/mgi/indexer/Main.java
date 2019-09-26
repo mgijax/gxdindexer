@@ -26,6 +26,7 @@ public class Main {
 		 * The key is the name you would use to specify your indexer as a command argument
 		 * */
 		indexerMap.put("gxdMarker", new GxdMarkerIndexer());
+		indexerMap.put("gxdResult", new GxdResultIndexer());
 	}
 
 	public static int maxThreads = 1;
@@ -55,17 +56,9 @@ public class Main {
 				} else if(indexerMap.containsKey(arg)) {
 					SPECIFIED_INDEXERS.add(arg);
 					logger.info("adding user specified index: " + arg + " to list of indexers to run.");
-				} else if("hmdc".equalsIgnoreCase(arg) || "hdp".equalsIgnoreCase(arg)) {
-					SPECIFIED_INDEXERS.add("hdpGene");
-					SPECIFIED_INDEXERS.add("hdpDisease");
-					SPECIFIED_INDEXERS.add("hdpGrid");
-					SPECIFIED_INDEXERS.add("hdpGridAnnotation");
 				} else if("gxd".equalsIgnoreCase(arg)) {
-					SPECIFIED_INDEXERS.add("gxdLitIndex");
+					SPECIFIED_INDEXERS.add("gxdMarker");
 					SPECIFIED_INDEXERS.add("gxdResult");
-					SPECIFIED_INDEXERS.add("gxdImagePane");
-					SPECIFIED_INDEXERS.add("gxdDifferentialMarker");
-					SPECIFIED_INDEXERS.add("gxdEmapaAC");
 				} else if ("gxdht".equalsIgnoreCase(arg)) {
 					SPECIFIED_INDEXERS.add("gxdHtSample");
 					SPECIFIED_INDEXERS.add("gxdHtExperiment");
