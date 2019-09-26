@@ -25,7 +25,8 @@ public class Main {
 		 * All indexers must be added to this list in order to be run.
 		 * The key is the name you would use to specify your indexer as a command argument
 		 * */
-		indexerMap.put("gxdMarker", new GxdMarkerIndexer());
+		indexerMap.put("gxdImagePane", new GxdImagePaneIndexer());
+		indexerMap.put("gxdDifferentialMarker", new GxdDifferentialMarkerIndexer());
 		indexerMap.put("gxdResult", new GxdResultIndexer());
 	}
 
@@ -57,7 +58,8 @@ public class Main {
 					SPECIFIED_INDEXERS.add(arg);
 					logger.info("adding user specified index: " + arg + " to list of indexers to run.");
 				} else if("gxd".equalsIgnoreCase(arg)) {
-					SPECIFIED_INDEXERS.add("gxdMarker");
+					SPECIFIED_INDEXERS.add("gxdImagePane");
+					SPECIFIED_INDEXERS.add("gxdDifferentialMarker");
 					SPECIFIED_INDEXERS.add("gxdResult");
 				} else if ("gxdht".equalsIgnoreCase(arg)) {
 					SPECIFIED_INDEXERS.add("gxdHtSample");
