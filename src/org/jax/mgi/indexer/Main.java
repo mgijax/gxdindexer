@@ -28,6 +28,7 @@ public class Main {
 		indexerMap.put("gxdImagePane", new GxdImagePaneIndexer());
 		indexerMap.put("gxdDifferentialMarker", new GxdDifferentialMarkerIndexer());
 		indexerMap.put("gxdResult", new GxdResultIndexer());
+		indexerMap.put("gxdDagEdge", new GxdDagEdgeIndexer());
 	}
 
 	public static int maxThreads = 1;
@@ -61,6 +62,7 @@ public class Main {
 					SPECIFIED_INDEXERS.add("gxdImagePane");
 					SPECIFIED_INDEXERS.add("gxdDifferentialMarker");
 					SPECIFIED_INDEXERS.add("gxdResult");
+					SPECIFIED_INDEXERS.add("gxdDagEdge");
 				} else if ("gxdht".equalsIgnoreCase(arg)) {
 					SPECIFIED_INDEXERS.add("gxdHtSample");
 					SPECIFIED_INDEXERS.add("gxdHtExperiment");
