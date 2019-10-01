@@ -1274,7 +1274,7 @@ public class GxdResultIndexer extends Indexer {
 			
 			ResultSet rs = ex.executeProto(query);
 			String assay_type = "RNA-Seq";
-			String isExpressed = "0";
+			String isExpressed = "No";
 			String detectionLevel = "No";
 
 			while (rs.next()) {
@@ -1285,10 +1285,10 @@ public class GxdResultIndexer extends Indexer {
 				// result fields
 				String theilerStage = rs.getString("theiler_stage");
 				if ("Below Cutoff".equals(rs.getString("tpm_level"))) {
-					isExpressed = "0";
+					isExpressed = "No";
 					detectionLevel = "No";
 				} else {
-					isExpressed = "1";
+					isExpressed = "Yes";
 					detectionLevel = "Yes";
 				}
 				String structureTermKey = rs.getString("structure_key");
