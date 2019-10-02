@@ -1247,7 +1247,7 @@ public class GxdResultIndexer extends Indexer {
 				+ "  cs.age as age_abbreviation, "
 				+ "  sm.level as tpm_level, cs.age_min, cs.age_max, "
 				+ "  null as pattern, et.primary_id as emaps_id, "
-				+ "  null as is_wild_type, cs.genotype_key, "
+				+ "  cs.genotype_key, "
 				+ "  exp.primary_id as ref_id, exp.name as ref_title, "
 				+ "  sn.by_gene_symbol as r_by_assay_type, "
 				+ "  sn.by_gene_symbol as r_by_gene_symbol, "
@@ -1281,6 +1281,8 @@ public class GxdResultIndexer extends Indexer {
 				String markerKey = rs.getString("marker_key");
 				String result_key = "rnaseq" + rs.getString("consolidated_measurement_key");
 				String assay_key = rs.getString("experiment_key");
+				String genotypeKey = rs.getString("genotype_key");
+				String combination = allelePairs.get(rs.getString("genotype_key"));
 
 				// result fields
 				String theilerStage = rs.getString("theiler_stage");
@@ -1341,7 +1343,9 @@ public class GxdResultIndexer extends Indexer {
 				}
 				doc.addField(GxdResultFields.NOTES, note);
 
-				boolean isWildType = "1".equals(rs.getString("is_wild_type")) || "-1".equals(rs.getString("genotype_key"));
+				boolean isWildType = "-1".equals(genotypeKey)
+					|| (combination == null)
+					|| ("".equals(combination));
 
 				String wildType = "mutant";
 				if (isWildType) {
@@ -1406,10 +1410,9 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.AGE, rs.getString("age_abbreviation"));
 				doc.addField(GxdResultFields.ASSAY_MGIID, assayID.get(assay_key));
 				doc.addField(GxdResultFields.JNUM, rs.getString("ref_id"));
-				doc.addField(GxdResultFields.PUBMED_ID, rs.getString("ref_id"));
 				doc.addField(GxdResultFields.SHORT_CITATION, rs.getString("ref_title"));
-				doc.addField(GxdResultFields.GENOTYPE, allelePairs.get(rs.getString("genotype_key")));
-				doc.addField(GxdResultFields.STRAIN, bgStrains.get(rs.getString("genotype_key")));
+				doc.addField(GxdResultFields.GENOTYPE, allelePairs.get(genotypeKey));
+				doc.addField(GxdResultFields.STRAIN, bgStrains.get(combination));
 				doc.addField(GxdResultFields.PATTERN, rs.getString("pattern"));
 
 				// multi values
