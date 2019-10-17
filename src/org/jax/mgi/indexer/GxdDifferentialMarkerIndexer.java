@@ -22,6 +22,13 @@ import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
  * 
  */
 
+// Note:
+// For searches where the user specifies a structure and one or more stages, then checks the
+// "and nowhere else" checkbox, we will need to perform that search as:
+//		1. specified structure is in the set of exclusive structures for the marker, AND
+//		2. no other stages are in the set of exclusive stages for the marker
+// A third field is not needed.  (One had been proposed for structure/stage pairs.)
+
 public class GxdDifferentialMarkerIndexer extends Indexer 
 {   
 	//--- instance variables ---//
@@ -131,19 +138,35 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 	}
 
 
-	// Note:
-	// For searches where the user specifies a structure and one or more stages, then checks the
-	// "and nowhere else" checkbox, we will need to perform that search as:
-	//		1. specified structure is in the set of exclusive structures for the marker, AND
-	//		2. no other stages are in the set of exclusive stages for the marker
-	// A third field is not needed.  (One had been proposed for structure/stage pairs.)
 	
-	
-	// main logic for building the index
-	public void index() throws Exception
-	{    
+	// get an ordered list of markers that have either classical or RNA-Seq data (or both)
+	public List<Integer> getMarkerKeys() throws Exception {
+		logger.info("Getting marker keys");
+		List<Integer> markerKeys = new ArrayList<Integer>();
+
+		String cmd = "select m.marker_key from marker m "
+			+ "where m.organism = 'mouse' "
+			+ "and m.status = 'official' "
+			+ "and (exists (select 1 from expression_result_summary s "
+			+ "  where m.marker_key = s.marker_key) "
+			+ " or exists (select 1 from expression_ht_consolidated_sample_measurement c "
+			+ "where m.marker_key = c.marker_key) ) "
+			+ "order by 1";
+
+		ResultSet rs = ex.executeProto(cmd);
+		while (rs.next()) {
+			markerKeys.add(rs.getInt("marker_key"));
+		}
+		rs.close();
+		logger.info(" - found " + markerKeys.size());
+
+		return markerKeys;
+	}
+
+	// get data about ancestors of anatomical structures
+	public Map<String,List<String>> getStructureAncestors() throws Exception {
+		logger.info("Building map of structure ancestors");
 		Map<String,List<String>> structureAncestorIdMap = new HashMap<String,List<String>>();
-		logger.info("building map of structure ancestors");
 		String structureAncestorQuery = SharedQueries.GXD_EMAP_ANCESTOR_QUERY;
 		ResultSet rs = ex.executeProto(structureAncestorQuery);
 
@@ -160,20 +183,25 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 			}
 			structureAncestorIdMap.get(skey).add(ancestorId);
 		}
-		logger.info("done gathering structure ancestors");
+		rs.close();
+		logger.info(" - got ancestors for " + structureAncestorIdMap.size() + " structures");
+		return structureAncestorIdMap;
+	}
 
+	// get data for anatomical structures (except ancestors)
+	public Map<String,Structure> getStructureData() throws Exception {
+		logger.info("Building map of structure info");
 		Map<String,Structure> structureInfoMap = new HashMap<String,Structure>();
-		logger.info("building map of structure info");
 		// This map queries EMAPS terms with their stages, stores them by EMAPS ID, but saves the EMAPA ID to be the indexed value
 		String structureInfoQuery = "select emapa.primary_id as emapa_id, "
-				+ 	"t.primary_id emaps_id, " 
-				+ 	"e.stage as theiler_stage "
-				+ "from term t join "
-				+ 	"term_emap e on t.term_key = e.term_key join "
-				+ 	"term emapa on emapa.term_key=e.emapa_term_key "
-				+ "where t.vocab_name in ('EMAPS') ";
+			+ 	"t.primary_id emaps_id, " 
+			+ 	"e.stage as theiler_stage "
+			+ "from term t join "
+			+ 	"term_emap e on t.term_key = e.term_key join "
+			+ 	"term emapa on emapa.term_key=e.emapa_term_key "
+			+ "where t.vocab_name in ('EMAPS') ";
 
-		rs = ex.executeProto(structureInfoQuery);
+		ResultSet rs = ex.executeProto(structureInfoQuery);
 
 		while (rs.next())
 		{
@@ -182,58 +210,161 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 			String ts = rs.getString("theiler_stage");
 			structureInfoMap.put(emapsId,new Structure(emapaId,ts));
 		}
-		logger.info("done gathering structure info");
+		logger.info(" - Got data for " + structureInfoMap.size() + " structures");
+		return structureInfoMap;
+	}
 
-		ResultSet rs_tmp = ex.executeProto("select count(distinct marker_key) as cnt from expression_result_summary");
-		rs_tmp.next();
+	// add results for the classical data for markers between the two given keys
+	public void addClassicalResults(Integer startMarkerKey, Integer endMarkerKey, Map<Integer,List<Result>> markerResults) throws Exception {
+		logger.info("Getting classical results (markers " + startMarkerKey + " to " + endMarkerKey + ")");
 
-		int start = 0;
-		int end = rs_tmp.getInt("cnt");
-		int chunkSize = 2000;
+		String query = "select ers.is_expressed, ers.structure_key, "
+			+ " ers.structure_printname, "
+			+ " emaps.primary_id emaps_id, "
+			+ " ers.theiler_stage, ers.marker_key "
+			+ "from expression_result_summary ers "
+			+ " join term emaps on ers.structure_key=emaps.term_key "
+			+ "where ers.marker_key >= " + startMarkerKey
+			+ " and ers.marker_key < " + endMarkerKey
+			+ " and ers.is_expressed != 'Unknown/Ambiguous' "
+			+ " and ers.assay_type != 'Recombinase reporter' "
+			+ " and ers.assay_type != 'In situ reporter (transgenic)' "
+			+ " and (ers.is_wild_type = 1 or ers.genotype_key=-1)";
 
-		int modValue = end / chunkSize;
+		// "order by is_expressed desc ";
+		ResultSet rs = ex.executeProto(query);
 
-		logger.info("Getting "+end+" marker keys + differential data");
-
-		for (int i = 0; i <= (modValue+1); i++) 
-		{
-			start = i * chunkSize;
-
-			logger.info ("Processing markers keys (ignoring ambiguous results) " + start + " to " + (start+chunkSize));
-			String query = "WITH expr_markers AS (select distinct  marker_key from expression_result_summary ers "+
-					" order by marker_key limit "+chunkSize+" offset "+start+") " +
-					"select ers.is_expressed, " +
-					"ers.structure_key, " +
-					"ers.structure_printname, " +
-					"emaps.primary_id emaps_id, " +
-					"ers.theiler_stage," +
-					"ers.marker_key "+
-					"from expr_markers em, " +
-					"expression_result_summary ers join " +
-					"term emaps on ers.structure_key=emaps.term_key "+
-					"where em.marker_key=ers.marker_key " +
-					"and ers.is_expressed != 'Unknown/Ambiguous' " +
-					"and ers.assay_type != 'Recombinase reporter' "+
-					"and ers.assay_type != 'In situ reporter (transgenic)' " +
-					"and (ers.is_wild_type = 1 or ers.genotype_key=-1) ";
-			// "order by is_expressed desc ";
-			rs = ex.executeProto(query);
-			Map<Integer,List<Result>> markerResults = new HashMap<Integer,List<Result>>();
-
-			logger.info("Organising them");
-			while (rs.next()) 
-			{           
-				int marker_key = rs.getInt("marker_key");
-				boolean is_expressed = rs.getString("is_expressed").equals("Yes");
-				String structure_key = rs.getString("structure_key");
-				String emapsId = rs.getString("emaps_id");
-				String stage = rs.getString("theiler_stage");
-				if(!markerResults.containsKey(marker_key))
-				{
-					markerResults.put(marker_key,new ArrayList<Result>());
-				}
-				markerResults.get(marker_key).add(new Result(structure_key,emapsId,stage,is_expressed));
+		logger.info(" - organising them");
+		while (rs.next()) {           
+			int marker_key = rs.getInt("marker_key");
+			boolean is_expressed = rs.getString("is_expressed").equals("Yes");
+			String structure_key = rs.getString("structure_key");
+			String emapsId = rs.getString("emaps_id");
+			String stage = rs.getString("theiler_stage");
+			if(!markerResults.containsKey(marker_key)) {
+				markerResults.put(marker_key,new ArrayList<Result>());
 			}
+			markerResults.get(marker_key).add(new Result(structure_key,emapsId,stage,is_expressed));
+		}
+		rs.close();
+		logger.info(" - returning " + markerResults.size());
+	}
+
+	// add results for the classical data for markers between the two given keys
+	public void addRNASeqResults(Integer startMarkerKey, Integer endMarkerKey, Map<Integer,List<Result>> markerResults) throws Exception {
+		logger.info("Getting RNA-Seq results (markers " + startMarkerKey + " to " + endMarkerKey + ")");
+		logger.info(" - returning " + markerResults.size());
+	}
+
+	// get all the Results for markers between the two given keys
+	public Map<Integer,List<Result>> getMarkerResults(Integer startKey, Integer endKey) throws Exception {
+		Map<Integer,List<Result>> markerResults = new HashMap<Integer,List<Result>>();
+		addClassicalResults(startKey, endKey, markerResults);
+		addRNASeqResults(startKey, endKey, markerResults);
+		return markerResults;
+	}
+	
+	// build and return a solr document for the given marker key and its
+	// (given) results, pulling data from the two maps as well
+	public SolrInputDocument buildSolrDoc(Integer markerKey, 
+		List<Result> markerResults,
+		Map<String,Structure> structureInfoMap,
+		Map<String,List<String>> structureAncestorIdMap,
+		Map<String,Set<String>> exclusiveStructures,
+		Map<String,Set<String>> exclusiveStages) {
+
+		String mrkKey = "" + markerKey;
+		
+		SolrInputDocument doc = new SolrInputDocument();
+		// Add the single value fields
+		doc.addField(GxdResultFields.KEY, mrkKey);
+		doc.addField(GxdResultFields.MARKER_KEY, markerKey);
+				
+		// populate the exclusive structures and stages fields...
+		if (exclusiveStructures.containsKey(mrkKey)) {
+			doc.addField(GxdResultFields.DIFF_EXCLUSIVE_STRUCTURES, exclusiveStructures.get(mrkKey));
+		}
+		if (exclusiveStages.containsKey(mrkKey)) {
+			doc.addField(GxdResultFields.DIFF_EXCLUSIVE_STAGES, exclusiveStages.get(mrkKey));
+		}
+
+		// create a result tracker for each marker to manage stage/structure combos
+		// also calculates when a marker is expressed "exclusively" in a structure
+		GXDDifferentialMarkerTracker mTracker = new GXDDifferentialMarkerTracker();
+
+		// iterate this marker's results to build various search fields.
+
+		Set<String> posAncestors = new HashSet<String>();
+		for(Result result : markerResults) {
+			// add the differential ancestor search fields for this marker (for positive results only)
+			if(result.expressed) {
+				// get term ID of ancestors
+				if(structureAncestorIdMap.containsKey(result.structureKey)) {
+					List<String> structureAncestorIds = structureAncestorIdMap.get(result.structureKey);
+					for (String structureAncestorId : structureAncestorIds) {
+						// find all the terms + synonyms for each ancestorID
+						if(structureInfoMap.containsKey(structureAncestorId)) {
+							Structure ancestor = structureInfoMap.get(structureAncestorId);
+							posAncestors.add(ancestor.toString());
+							mTracker.addResultStructureId(result.stage,result.structureId,ancestor.structureId);
+						} // end if
+					} // end for
+				} // end if
+
+				// also add the annotated structure to the list of positive ancestors
+				posAncestors.add(structureInfoMap.get(result.structureId).toString());
+				mTracker.addResultStructureId(result.stage,result.structureId,result.structureId);
+			} // end if
+		} // end for
+
+		// add the unique positive ancestors (including original structure)
+		for(String posAncestor : posAncestors) {
+			doc.addField(GxdResultFields.DIFF_POS_ANCESTORS, posAncestor);
+		} // end for
+
+		// calculate the "exclusively" expressed structures for this marker
+		mTracker.calculateExclusiveStructures();
+
+		for(String exclusiveStructureValue : mTracker.getExclusiveStructuresAnyStage()) {
+			doc.addField(GxdResultFields.DIFF_EXC_ANCESTORS,exclusiveStructureValue);
+		} // end for
+
+		//add the unique exclusive all stage structures
+		for(String exclusiveAllStageStructure : mTracker.getExclusiveStructuresAllStages()) {
+			doc.addField(GxdResultFields.DIFF_EXC_ANCESTORS_ALL_STAGES,exclusiveAllStageStructure);
+		} // end for
+
+		return doc;
+	}
+
+	// main logic for building the index
+	public void index() throws Exception
+	{    
+		Map<String,List<String>> structureAncestorIdMap = getStructureAncestors();
+		Map<String,Structure> structureInfoMap = getStructureData();
+		List<Integer> markerKeys = getMarkerKeys();
+		Collection<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
+
+		int startIndex = 0;
+		int numMarkers = markerKeys.size();
+		int chunkSize = 2000;	// number of markers to process at once
+		int cacheSize = 1000;	// number of solr docs to keep in memory
+
+		Integer startMarkerKey = 0;
+		Integer endMarkerKey = 0;
+
+		while (startIndex < numMarkers) {
+			// get a slice of markers to work on
+			startMarkerKey = markerKeys.get(startIndex);
+			int endIndex = startIndex + chunkSize;
+
+			if (endIndex >= numMarkers) {
+				endMarkerKey = startMarkerKey + 1;
+			} else {
+				endMarkerKey = markerKeys.get(endIndex);
+			}
+
+			Map<Integer,List<Result>> markerResults = getMarkerResults(startMarkerKey, endMarkerKey);
 
 			// can walk through markerResults here to find for each marker:
 			// 1. structures where expression happens exclusively (nowhere outside that structure and its descendants)
@@ -241,114 +372,26 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 			
 			Map<String,Set<String>> exclusiveStructures = findExclusiveStructures(markerResults);
 			Map<String,Set<String>> exclusiveStages = findExclusiveStages(markerResults);
-			
-			// ready, set, compose documents!  (note: compose is only one letter different than compost.)
-			
-			Collection<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
 
-			logger.info("Creating Solr Documents");
-			for(int markerKey : markerResults.keySet())
-			{   
-				String mrkKey = "" + markerKey;
-				
-				SolrInputDocument doc = new SolrInputDocument();
-				// Add the single value fields
-				doc.addField(GxdResultFields.KEY, mrkKey);
-				doc.addField(GxdResultFields.MARKER_KEY, markerKey);
-				
-				// populate the exclusive structures and stages fields...
-				if (exclusiveStructures.containsKey(mrkKey)) {
-					doc.addField(GxdResultFields.DIFF_EXCLUSIVE_STRUCTURES, exclusiveStructures.get(mrkKey));
-				}
-				if (exclusiveStages.containsKey(mrkKey)) {
-					doc.addField(GxdResultFields.DIFF_EXCLUSIVE_STAGES, exclusiveStages.get(mrkKey));
-				}
+			// now build & handle solr documents (one per marker)
+			for (Integer markerKey : markerResults.keySet()) {
+				docs.add(buildSolrDoc(markerKey, markerResults.get(markerKey), structureInfoMap, structureAncestorIdMap, exclusiveStructures, exclusiveStages));
 
-				// create a result tracker for each marker to manage stage/structure combos
-				// also calculates when a marker is expressed "exclusively" in a structure
-				GXDDifferentialMarkerTracker mTracker = new GXDDifferentialMarkerTracker();
-
-				// iterate this marker's results to build various search fields.
-
-				Set<String> posAncestors = new HashSet<String>();
-				for(Result result : markerResults.get(markerKey))
-				{
-					// add the differential ancestor search fields for this marker (for positive results only)
-					if(result.expressed)
-					{
-						// get term ID of ancestors
-						if(structureAncestorIdMap.containsKey(result.structureKey))
-						{
-							List<String> structureAncestorIds = structureAncestorIdMap.get(result.structureKey);
-							for (String structureAncestorId : structureAncestorIds)
-							{
-								// find all the terms + synonyms for each ancestorID
-								if(structureInfoMap.containsKey(structureAncestorId))
-								{
-									Structure ancestor = structureInfoMap.get(structureAncestorId);
-									posAncestors.add(ancestor.toString());
-									mTracker.addResultStructureId(result.stage,result.structureId,ancestor.structureId);
-								}
-							}
-						}
-						// also add the annotated structure to the list of positive ancestors
-						posAncestors.add(structureInfoMap.get(result.structureId).toString());
-						mTracker.addResultStructureId(result.stage,result.structureId,result.structureId);
-					}
-
-				}
-				// add the unique positive ancestors (including original structure)
-				for(String posAncestor : posAncestors)
-				{
-					doc.addField(GxdResultFields.DIFF_POS_ANCESTORS, posAncestor);
-				}
-
-				// calculate the "exclusively" expressed structures for this marker
-				mTracker.calculateExclusiveStructures();
-
-				for(String exclusiveStructureValue : mTracker.getExclusiveStructuresAnyStage())
-				{
-					doc.addField(GxdResultFields.DIFF_EXC_ANCESTORS,exclusiveStructureValue);
-				}
-
-				//add the unique exclusive all stage structures
-				for(String exclusiveAllStageStructure : mTracker.getExclusiveStructuresAllStages())
-				{
-					doc.addField(GxdResultFields.DIFF_EXC_ANCESTORS_ALL_STAGES,exclusiveAllStageStructure);
-				}
-
-				docs.add(doc);
-				if (docs.size() > 1000) 
-				{
-					//logger.info("Adding a stack of the documents to Solr");
-					startTime();
+				if (docs.size() > cacheSize) {
 					writeDocs(docs);
-					long endTime = stopTime();
-					if(endTime > 500)
-					{
-						logger.info("time to call writeDocs() "+stopTime());
-					}
 					docs = new ArrayList<SolrInputDocument>();
 				}
 			}
+			logger.info(" - built solr docs");
+
+			// prepare for the next slice of markers
+			startIndex = endIndex;
+		} // end while (walking through chunks of markers)
+
+		if (docs.size() > 0) {
 			writeDocs(docs);
 		}
 		commit();
-	}
-
-	/*
-	 * For debugging purposes only
-	 */
-	private long startTime = 0;
-	
-	public void startTime() {
-		startTime = System.nanoTime();
-	}
-	
-	public long stopTime() {
-		long endTime = System.nanoTime();
-		return (endTime - startTime)/1000000;
-
 	}
 
 	// helper classes
