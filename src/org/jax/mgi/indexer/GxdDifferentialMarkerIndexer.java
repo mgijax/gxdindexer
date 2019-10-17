@@ -234,7 +234,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 		// "order by is_expressed desc ";
 		ResultSet rs = ex.executeProto(query);
 
-		logger.info(" - organising them");
+		logger.info(" - organizing them");
 		while (rs.next()) {           
 			int marker_key = rs.getInt("marker_key");
 			boolean is_expressed = rs.getString("is_expressed").equals("Yes");
@@ -247,13 +247,44 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 			markerResults.get(marker_key).add(new Result(structure_key,emapsId,stage,is_expressed));
 		}
 		rs.close();
-		logger.info(" - returning " + markerResults.size());
+		logger.info(" - returning data for " + markerResults.size() + " markers");
 	}
 
 	// add results for the classical data for markers between the two given keys
 	public void addRNASeqResults(Integer startMarkerKey, Integer endMarkerKey, Map<Integer,List<Result>> markerResults) throws Exception {
 		logger.info("Getting RNA-Seq results (markers " + startMarkerKey + " to " + endMarkerKey + ")");
-		logger.info(" - returning " + markerResults.size());
+
+		String query = "select sm.level, emaps.term_key, emaps.primary_id, "
+			+ " cs.theiler_stage, sm.marker_key "
+			+ "from expression_ht_consolidated_sample_measurement sm, "
+			+ " expression_ht_consolidated_sample cs, "
+			+ " term_emap te, term emaps, genotype gt "
+			+ "where sm.marker_key >= " + startMarkerKey
+			+ " and sm.marker_key < " + endMarkerKey
+			+ " and sm.consolidated_sample_key = cs.consolidated_sample_key "
+			+ " and cs.emapa_key = te.emapa_term_key "
+			+ " and cs.theiler_stage::integer = te.stage "
+			+ " and te.term_key = emaps.term_key "
+			+ " and cs.genotype_key = gt.genotype_key "
+			+ " and ((gt.combination_1 is null) or (cs.genotype_key=-1)) -- is wild type";
+
+		// "order by is_expressed desc ";
+		ResultSet rs = ex.executeProto(query);
+
+		logger.info(" - organizing them");
+		while (rs.next()) {           
+			int marker_key = rs.getInt("marker_key");
+			boolean is_expressed = !"Below Cutoff".equals(rs.getString("level"));
+			String structure_key = rs.getString("term_key");
+			String emapsId = rs.getString("primary_id");
+			String stage = rs.getString("theiler_stage");
+			if(!markerResults.containsKey(marker_key)) {
+				markerResults.put(marker_key,new ArrayList<Result>());
+			}
+			markerResults.get(marker_key).add(new Result(structure_key,emapsId,stage,is_expressed));
+		}
+		rs.close();
+		logger.info(" - returning data for " + markerResults.size() + " markers");
 	}
 
 	// get all the Results for markers between the two given keys
