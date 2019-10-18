@@ -401,8 +401,11 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 			// 1. structures where expression happens exclusively (nowhere outside that structure and its descendants)
 			// 2. stages where expression happens exclusively (at no other structures)
 			
+			logger.info(" - gathered results");
 			Map<String,Set<String>> exclusiveStructures = findExclusiveStructures(markerResults);
+			logger.info(" - found exclusiveStructures");
 			Map<String,Set<String>> exclusiveStages = findExclusiveStages(markerResults);
+			logger.info(" - found exclusiveStages");
 
 			// now build & handle solr documents (one per marker)
 			for (Integer markerKey : markerResults.keySet()) {
