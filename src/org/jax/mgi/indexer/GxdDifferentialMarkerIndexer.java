@@ -158,7 +158,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 			markerKeys.add(rs.getInt("marker_key"));
 		}
 		rs.close();
-		logger.info(" - found " + markerKeys.size());
+		logger.info(" - found " + markerKeys.size() + " marker keys from " + markerKeys.get(0) + " to " + markerKeys.get(markerKeys.size() - 1));
 
 		return markerKeys;
 	}
@@ -390,7 +390,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 			int endIndex = startIndex + chunkSize;
 
 			if (endIndex >= numMarkers) {
-				endMarkerKey = startMarkerKey + 1;
+				endMarkerKey = markerKeys.get(markerKeys.size() - 1);
 			} else {
 				endMarkerKey = markerKeys.get(endIndex);
 			}
