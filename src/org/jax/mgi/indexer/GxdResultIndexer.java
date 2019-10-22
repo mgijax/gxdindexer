@@ -332,7 +332,10 @@ public class GxdResultIndexer extends Indexer {
 		ResultSet rs = ex.executeProto(systemQuery);
 
 		while (rs.next()) {
-			String resultKey = "rnaseq" + rs.getString("result_key");
+			String resultKey = rs.getString("result_key");
+			if (forRnaSeq) {
+				resultKey = "rnaseq" + resultKey;
+			}
 			String system = rs.getString("anatomical_system") + "_" + rs.getString("emapa_id");
 
 			if (!systemMap.containsKey(resultKey)) {
