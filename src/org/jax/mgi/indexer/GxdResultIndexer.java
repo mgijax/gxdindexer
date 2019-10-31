@@ -1414,8 +1414,8 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.ASSAY_MGIID, assayID.get(assay_key));
 				doc.addField(GxdResultFields.JNUM, rs.getString("ref_id"));
 				doc.addField(GxdResultFields.SHORT_CITATION, rs.getString("ref_title"));
-				doc.addField(GxdResultFields.GENOTYPE, allelePairs.get(genotypeKey));
-				doc.addField(GxdResultFields.STRAIN, bgStrains.get(combination));
+				doc.addField(GxdResultFields.GENOTYPE, combination);
+				doc.addField(GxdResultFields.STRAIN, bgStrains.get(genotypeKey));
 				doc.addField(GxdResultFields.PATTERN, rs.getString("pattern"));
 
 				// multi values
