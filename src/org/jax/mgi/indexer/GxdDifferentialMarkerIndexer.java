@@ -46,6 +46,26 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 
 	//--- methods ---//
 	
+	// get a lookup for marker IDs (official mouse markers between the specified keys)
+	public Map<Integer,String> getMarkerIDs(Integer startKey, Integer endKey) throws Exception {
+		Map<Integer,String> markerIDs = new HashMap<Integer,String>();
+
+		String cmd = "select marker_key, primary_id "
+			+ "from marker "
+			+ "where marker_key >= " + startKey
+			+ " and marker_key < " + endKey
+			+ " and organism = 'mouse' "
+			+ " and status = 'official'";
+
+		ResultSet rs = ex.executeProto(cmd);
+		while (rs.next()) {
+			markerIDs.put(rs.getInt("marker_key"), rs.getString("primary_id"));
+		}
+		rs.close();
+		logger.info("Got IDs for " + markerIDs.size() + " markers");
+		return markerIDs;
+	}
+
 	// get the mapping from each EMAPS term key to its EMAPA ancestor keys
 	public void fillEmapaAncestors() throws Exception {
 		emapaAncestors = new HashMap<String,Set<String>>();
@@ -298,6 +318,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 	// build and return a solr document for the given marker key and its
 	// (given) results, pulling data from the two maps as well
 	public SolrInputDocument buildSolrDoc(Integer markerKey, 
+		String markerID,
 		List<Result> markerResults,
 		Map<String,Structure> structureInfoMap,
 		Map<String,List<String>> structureAncestorIdMap,
@@ -310,6 +331,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 		// Add the single value fields
 		doc.addField(GxdResultFields.KEY, mrkKey);
 		doc.addField(GxdResultFields.MARKER_KEY, markerKey);
+		doc.addField(GxdResultFields.MARKER_MGIID, markerID);
 				
 		// populate the exclusive structures and stages fields...
 		if (exclusiveStructures.containsKey(mrkKey)) {
@@ -395,6 +417,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 				endMarkerKey = markerKeys.get(endIndex);
 			}
 
+			Map<Integer,String> markerIDs = getMarkerIDs(startMarkerKey, endMarkerKey); 
 			Map<Integer,List<Result>> markerResults = getMarkerResults(startMarkerKey, endMarkerKey);
 
 			// can walk through markerResults here to find for each marker:
@@ -409,7 +432,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 
 			// now build & handle solr documents (one per marker)
 			for (Integer markerKey : markerResults.keySet()) {
-				docs.add(buildSolrDoc(markerKey, markerResults.get(markerKey), structureInfoMap, structureAncestorIdMap, exclusiveStructures, exclusiveStages));
+				docs.add(buildSolrDoc(markerKey, markerIDs.get(markerKey), markerResults.get(markerKey), structureInfoMap, structureAncestorIdMap, exclusiveStructures, exclusiveStages));
 
 				if (docs.size() > cacheSize) {
 					writeDocs(docs);
