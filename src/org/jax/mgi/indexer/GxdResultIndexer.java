@@ -808,6 +808,19 @@ public class GxdResultIndexer extends Indexer {
 		this.setSkipOptimizer(true);
 	}
 		
+	// populate the GO fields in the SolrInputDocument for the given markerKey
+	public void addGoTerms(SolrInputDocument doc, String markerKey) throws Exception {
+		for (String goTerm : markerGoCache.getTermsBP(markerKey)) {
+			doc.addField(GxdResultFields.GO_HEADERS_BP, goTerm);
+		}
+		for (String goTerm : markerGoCache.getTermsCC(markerKey)) {
+			doc.addField(GxdResultFields.GO_HEADERS_CC, goTerm);
+		}
+		for (String goTerm : markerGoCache.getTermsMF(markerKey)) {
+			doc.addField(GxdResultFields.GO_HEADERS_MF, goTerm);
+		}
+	}
+
 	// index classical expression data (not RNA-Seq data)
 	public void	indexClassicalData(
 			Map<String, List<String>> markerNomenMap,
@@ -994,9 +1007,7 @@ public class GxdResultIndexer extends Indexer {
 					doc.addField(GxdResultFields.MP_HEADERS, mpTerm);
 				}
 
-				for (String goTerm : markerGoCache.getTerms(markerKey)) {
-					doc.addField(GxdResultFields.GO_HEADERS, goTerm);
-				}
+				addGoTerms(doc, markerKey);
 
 				for (String doTerm : markerDoCache.getTerms(markerKey)) {
 					doc.addField(GxdResultFields.DO_HEADERS, doTerm);
@@ -1372,9 +1383,7 @@ public class GxdResultIndexer extends Indexer {
 					doc.addField(GxdResultFields.MP_HEADERS, mpTerm);
 				}
 				
-				for (String goTerm : markerGoCache.getTerms(markerKey)) {
-					doc.addField(GxdResultFields.GO_HEADERS, goTerm);
-				}
+				addGoTerms(doc, markerKey);
 
 				for (String doTerm : markerDoCache.getTerms(markerKey)) {
 					doc.addField(GxdResultFields.DO_HEADERS, doTerm);
