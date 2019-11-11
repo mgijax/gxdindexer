@@ -35,13 +35,13 @@ cd `dirname $0`
 # or the robot.
 
 if [ "${1}" = "pub1" ]; then
-	SOLR_HOST=${PUB_FEWI1}
+	SOLR_HOST=${PUB_GXDSOLR1}
 elif [ "${1}" = "pub2" ]; then
-	SOLR_HOST=${PUB_FEWI2}
+	SOLR_HOST=${PUB_GXDSOLR2}
 elif [ "${1}" = "bot1" ]; then
-	SOLR_HOST=${BOT_FEWI1}
+	SOLR_HOST=${BOT_GXDSOLR1}
 elif [ "${1}" = "bot2" ]; then
-	SOLR_HOST=${BOT_FEWI2}
+	SOLR_HOST=${BOT_GXDSOLR2}
 else
 	echo ${USAGE}
 	exit 1
