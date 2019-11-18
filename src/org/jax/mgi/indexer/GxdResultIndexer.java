@@ -11,6 +11,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.text.NumberFormat;
 
 import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.gxdindexer.shr.MarkerMPCache;
@@ -1242,7 +1243,15 @@ public class GxdResultIndexer extends Indexer {
 
 		// can set the size to our known max (slight efficiency gain)
 		Collection<SolrInputDocument> docs = new ArrayList<SolrInputDocument>(1001);
-		
+
+		// get a formatter for average QN TPM level
+		NumberFormat fmt = NumberFormat.getInstance();
+		fmt.setGroupingUsed(false);
+		fmt.setMaximumFractionDigits(2);
+		fmt.setMinimumFractionDigits(2);
+		fmt.setMinimumIntegerDigits(1);
+		fmt.setMaximumIntegerDigits(10);
+
 		for (int i = 0; i <= modValue; i++) {
 
 			start = i * chunkSize;
@@ -1258,7 +1267,7 @@ public class GxdResultIndexer extends Indexer {
 			String query = "select sm.consolidated_measurement_key, "
 				+ "  sm.marker_key, cs.experiment_key, "
 				+ "  emaps.term_key as structure_key, cs.theiler_stage, "
-				+ "  cs.age as age_abbreviation, "
+				+ "  cs.age as age_abbreviation, sm.average_qn_tpm, "
 				+ "  sm.level as tpm_level, cs.age_min, cs.age_max, "
 				+ "  null as pattern, et.primary_id as emaps_id, "
 				+ "  cs.genotype_key, "
@@ -1300,6 +1309,15 @@ public class GxdResultIndexer extends Indexer {
 
 				// result fields
 				String theilerStage = rs.getString("theiler_stage");
+				Double avgQnTpmDbl = rs.getDouble("average_qn_tpm");
+
+				String avgQnTpm = null;
+				try {
+					avgQnTpm = fmt.format(avgQnTpmDbl);
+				} catch (NumberFormatException e) {
+					avgQnTpm = avgQnTpmDbl.toString();
+				}
+
 				if ("Below Cutoff".equals(rs.getString("tpm_level"))) {
 					isExpressed = "No";
 					detectionLevel = "No";
@@ -1344,6 +1362,7 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.AGE_MIN, roundAge(rs.getString("age_min")));
 				doc.addField(GxdResultFields.AGE_MAX, roundAge(rs.getString("age_max")));
 				doc.addField(GxdResultFields.TPM_LEVEL, rs.getString("tpm_level"));
+				doc.addField(GxdResultFields.AVG_QN_TPM_LEVEL, avgQnTpm);
 				doc.addField(GxdResultFields.BIOLOGICAL_REPLICATES, rs.getString("biological_replicate_count"));
 				doc.addField(GxdResultFields.SEX, rs.getString("sex"));
 				String note = rs.getString("note");
