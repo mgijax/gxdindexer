@@ -75,7 +75,7 @@ public abstract class TermAssociationCache {
 			if (!this.cache.containsKey(objectKey)) {
 				this.cache.put(objectKey, new ArrayList<String>());
 			}
-			this.cache.get(objectKey).add(rs.getString("term"));
+			this.cache.get(objectKey).add(rs.getString("term").trim());
 		}
 		rs.close();
 		logger.info(" - done (" + this.cache.size() + " object keys)");

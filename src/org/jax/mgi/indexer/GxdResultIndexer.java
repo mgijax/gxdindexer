@@ -1005,7 +1005,7 @@ public class GxdResultIndexer extends Indexer {
 
 				// add fields for filtering by marker-associated vocabularies
 				for (String mpTerm : markerMpCache.getTerms(markerKey)) {
-					doc.addField(GxdResultFields.MP_HEADERS, mpTerm.trim());
+					doc.addField(GxdResultFields.MP_HEADERS, mpTerm);
 				}
 
 				addGoTerms(doc, markerKey);
