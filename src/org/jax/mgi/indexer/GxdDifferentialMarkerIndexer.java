@@ -159,7 +159,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 
 
 	
-	// get an ordered list of markers that have either classical or RNA-Seq data (or both)
+	// get an ordered list of markers that have classical data (not considering RNA-Seq data)
 	public List<Integer> getMarkerKeys() throws Exception {
 		logger.info("Getting marker keys");
 		List<Integer> markerKeys = new ArrayList<Integer>();
@@ -167,10 +167,8 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 		String cmd = "select m.marker_key from marker m "
 			+ "where m.organism = 'mouse' "
 			+ "and m.status = 'official' "
-			+ "and (exists (select 1 from expression_result_summary s "
+			+ "and exists (select 1 from expression_result_summary s "
 			+ "  where m.marker_key = s.marker_key) "
-			+ " or exists (select 1 from expression_ht_consolidated_sample_measurement c "
-			+ "where m.marker_key = c.marker_key) ) "
 			+ "order by 1";
 
 		ResultSet rs = ex.executeProto(cmd);
@@ -270,48 +268,10 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 		logger.info(" - returning data for " + markerResults.size() + " markers");
 	}
 
-	// add results for the classical data for markers between the two given keys
-	public void addRNASeqResults(Integer startMarkerKey, Integer endMarkerKey, Map<Integer,List<Result>> markerResults) throws Exception {
-		logger.info("Getting RNA-Seq results (markers " + startMarkerKey + " to " + endMarkerKey + ")");
-
-		String query = "select sm.level, emaps.term_key, emaps.primary_id, "
-			+ " cs.theiler_stage, sm.marker_key "
-			+ "from expression_ht_consolidated_sample_measurement sm, "
-			+ " expression_ht_consolidated_sample cs, "
-			+ " term_emap te, term emaps, genotype gt "
-			+ "where sm.marker_key >= " + startMarkerKey
-			+ " and sm.marker_key < " + endMarkerKey
-			+ " and sm.consolidated_sample_key = cs.consolidated_sample_key "
-			+ " and cs.emapa_key = te.emapa_term_key "
-			+ " and cs.theiler_stage::integer = te.stage "
-			+ " and te.term_key = emaps.term_key "
-			+ " and cs.genotype_key = gt.genotype_key "
-			+ " and ((gt.combination_1 is null) or (cs.genotype_key=-1)) -- is wild type";
-
-		// "order by is_expressed desc ";
-		ResultSet rs = ex.executeProto(query);
-
-		logger.info(" - organizing them");
-		while (rs.next()) {           
-			int marker_key = rs.getInt("marker_key");
-			boolean is_expressed = !"Below Cutoff".equals(rs.getString("level"));
-			String structure_key = rs.getString("term_key");
-			String emapsId = rs.getString("primary_id");
-			String stage = rs.getString("theiler_stage");
-			if(!markerResults.containsKey(marker_key)) {
-				markerResults.put(marker_key,new ArrayList<Result>());
-			}
-			markerResults.get(marker_key).add(new Result(structure_key,emapsId,stage,is_expressed));
-		}
-		rs.close();
-		logger.info(" - returning data for " + markerResults.size() + " markers");
-	}
-
 	// get all the Results for markers between the two given keys
 	public Map<Integer,List<Result>> getMarkerResults(Integer startKey, Integer endKey) throws Exception {
 		Map<Integer,List<Result>> markerResults = new HashMap<Integer,List<Result>>();
 		addClassicalResults(startKey, endKey, markerResults);
-		addRNASeqResults(startKey, endKey, markerResults);
 		return markerResults;
 	}
 	
