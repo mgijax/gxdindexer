@@ -43,6 +43,9 @@ public class GxdResultIndexer extends Indexer {
 	// number of classical expression results considered for sorting
 	public int countOfClassicalResults = 0;
 
+	// count of temp tables produced so far for ordering (to ensure unique names)
+	public int tempTableCount = 0;
+	
 	// caches of genotype data (key is genotype key)
 	public Map<String, String> allelePairs = null;
 	public Map<String, String> bgStrains = null;
@@ -822,6 +825,49 @@ public class GxdResultIndexer extends Indexer {
 		}
 	}
 
+	// Build a temp table with ordering data for results between the two keys, either for
+	// for classical data (true) or RNA-Seq data (false).  Technically, this isn't really needed
+	// (as it could just be done with joins in the main indexing queries), but it's in here to 
+	// help simplify later code and make it more maintainable.
+	public String buildOrderingTable(int start, int end, boolean isClassical) throws Exception {
+		String tableName = "orderingTable" + tempTableCount;
+		String indexName = "otIndex" + tempTableCount;
+		
+		int isClassicalFlag = 1;
+		if (!isClassical) {
+			isClassicalFlag = 0;	// looking for RNA-Seq data, not classical
+		}
+
+		String cmd = "select r.result_key, s.by_symbol, t.by_assaytype, a.by_age, "
+			+ "  d.by_detected, ref.by_reference, st.by_structure "
+			+ " into temporary table " + tableName
+			+ " from universal_expression_result r, uni_by_symbol s, uni_by_age a, "
+			+ "  uni_by_assaytype t, uni_by_detected d, uni_by_reference ref, "
+			+ "  uni_by_structure st "
+			+ " where r.is_classical = " + isClassicalFlag
+			+ "  and r.result_key > " + start
+			+ "  and r.result_key <= " + end
+			+ "  and r.uni_key = s.uni_key "
+			+ "  and r.uni_key = a.uni_key "
+			+ "  and r.uni_key = t.uni_key "
+			+ "  and r.uni_key = d.uni_key "
+			+ "  and r.uni_key = ref.uni_key "
+			+ "  and r.uni_key = st.uni_key";
+		ex.executeVoid(cmd);
+		logger.info("Created " + tableName);
+		
+		ex.executeVoid("create index " + indexName + " on " + tableName + "(result_key)");
+		logger.info("Indexed " + tableName);
+		tempTableCount++;
+		return tableName;
+	}
+
+	// drop the temp table with the given name
+	public void dropTempTable(String s) throws Exception {
+		ex.executeVoid("drop table " + s);
+		logger.info("Dropped temp table: " + s);
+	}
+
 	// index classical expression data (not RNA-Seq data)
 	public void	indexClassicalData(
 			Map<String, List<String>> markerNomenMap,
@@ -869,6 +915,8 @@ public class GxdResultIndexer extends Indexer {
 			cacheAssays(start, end, false);			// cache data for assays in this chunk
 			cacheTerms(start, end, false);			// cache data for structures in this chunk
 			
+			String seqNumTable = buildOrderingTable(start, end, true);
+			
 			// mapping from result key to List of high-level EMAPA structures for each result
 			Map<String, Set<String>> systemMap = getAnatomicalSystemMap(start, end, false);
 
@@ -882,17 +930,16 @@ public class GxdResultIndexer extends Indexer {
 					+ "  ers.age_abbreviation,  ers.jnum_id, ers.detection_level, "
 					+ "  ers.age_min, ers.age_max, ers.pattern, emaps.primary_id as emaps_id, "
 					+ "  ers.is_wild_type, ers.genotype_key, ers.reference_key, " 
-					+ "  sp.sex, ersn.by_assay_type r_by_assay_type, "
-					+ "  ersn.by_gene_symbol r_by_gene_symbol, "
+					+ "  sp.sex, ersn.by_assaytype r_by_assay_type, "
+					+ "  ersn.by_symbol r_by_gene_symbol, "
 					+ "  ersn.by_age r_by_age, "
-					+ "  ersn.by_expressed r_by_expressed, "
+					+ "  ersn.by_detected r_by_expressed, "
 					+ "  ersn.by_structure r_by_structure, "
-					+ "  ersn.by_mutant_alleles r_by_mutant_alleles, "
 					+ "  ersn.by_reference r_by_reference "
 					+ "from expression_result_summary ers "
 					+ "inner join marker_counts mc on (ers.marker_key = mc.marker_key and mc.gxd_literature_count > 0) "
 					+ "inner join term emaps on (ers.structure_key = emaps.term_key) "
-					+ "inner join expression_result_sequence_num ersn on (ersn.result_key = ers.result_key) "
+					+ "inner join " + seqNumTable + " ersn on (ersn.result_key = ers.result_key) "
 					+ "left outer join assay_specimen sp on (ers.specimen_key = sp.specimen_key) "
 					+ "where ers.assay_type != 'Recombinase reporter'"
 					+ "  and ers.assay_type != 'In situ reporter (transgenic)'"
@@ -1143,7 +1190,6 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.R_BY_AGE, rs.getString("r_by_age"));
 				doc.addField(GxdResultFields.R_BY_STRUCTURE, rs.getString("r_by_structure"));
 				doc.addField(GxdResultFields.R_BY_EXPRESSED, rs.getString("r_by_expressed"));
-				doc.addField(GxdResultFields.R_BY_MUTANT_ALLELES, rs.getString("r_by_mutant_alleles"));
 				doc.addField(GxdResultFields.R_BY_REFERENCE, rs.getString("r_by_reference"));
 
 				// add matrix grouping fields
@@ -1168,6 +1214,7 @@ public class GxdResultIndexer extends Indexer {
 
 			if(memoryPercent() > .80) { printMemory(); commit(); }
 			
+			dropTempTable(seqNumTable); 
 		} // for loop (stepping through chunks)
 		
 		writeDocs(docs);
@@ -1257,6 +1304,8 @@ public class GxdResultIndexer extends Indexer {
 			start = i * chunkSize;
 			end = start + chunkSize;
 
+			String seqNumTable = buildOrderingTable(start, end, false);
+
 			// mapping from result key to List of high-level EMAPA structures for each result
 			Map<String, Set<String>> systemMap = getAnatomicalSystemMap(start, end, true);
 
@@ -1272,23 +1321,23 @@ public class GxdResultIndexer extends Indexer {
 				+ "  null as pattern, et.primary_id as emaps_id, "
 				+ "  cs.genotype_key, "
 				+ "  exp.primary_id as ref_id, exp.name as ref_title, "
-				+ "  sn.by_gene_symbol as r_by_assay_type, "
-				+ "  sn.by_gene_symbol as r_by_gene_symbol, "
+				+ "  sn.by_assaytype as r_by_assay_type, "
+				+ "  sn.by_symbol as r_by_gene_symbol, "
 				+ "  sn.by_age as r_by_age, "
-				+ "  sn.by_expressed as r_by_expressed, "
+				+ "  sn.by_detected as r_by_expressed, "
 				+ "  sn.by_structure as r_by_structure, "
-				+ "  sn.by_experiment as r_by_reference, "
+				+ "  sn.by_reference as r_by_reference, "
 				+ "  sm.biological_replicate_count, "
 				+ "  cs.sex, cs.note, g.is_conditional "
 				+ "from expression_ht_consolidated_sample_measurement sm, "
-				+ "  expression_ht_consolidated_sample_measurement_sequence_num sn, "
+				+ "  " + seqNumTable + " sn, "
 				+ "  expression_ht_consolidated_sample cs, "
 				+ "  expression_ht_experiment exp, "
 				+ "  term_emap emaps, term et, genotype g "
 				+ "where sm.consolidated_measurement_key > " + start
 				+ "  and sm.consolidated_measurement_key <= " + end
 				+ "  and cs.genotype_key = g.genotype_key "
-				+ "  and sm.consolidated_measurement_key = sn.consolidated_measurement_key "
+				+ "  and sm.consolidated_measurement_key = sn.result_key "
 				+ "  and cs.experiment_key = exp.experiment_key "
 				+ "  and sm.consolidated_sample_key = cs.consolidated_sample_key "
 				+ "  and cs.theiler_stage::integer = emaps.stage "
@@ -1590,6 +1639,7 @@ public class GxdResultIndexer extends Indexer {
 				commit();
 			}
 			
+			dropTempTable(seqNumTable); 
 		} // for loop (stepping through chunks)
 		
 		writeDocs(docs);

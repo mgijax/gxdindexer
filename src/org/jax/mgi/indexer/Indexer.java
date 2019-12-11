@@ -416,13 +416,13 @@ public abstract class Indexer implements Runnable {
 	// create an index on the given column in the given table
 	protected void createTempIndex(String tableName,String column) {
 		indexCounter += 1;
-		this.ex.executeVoid("create index tmp_idx"+indexCounter+" on "+tableName+" ("+column+")");
+		ex.executeVoid("create index tmp_idx"+indexCounter+" on "+tableName+" ("+column+")");
 		logger.debug("  - created index tmp_idx" + indexCounter + " in " + ex.getTimestamp());
 	}
 	
 	// run 'analyze' on the given table
 	protected void analyze(String tableName) {
-		this.ex.executeVoid("analyze " + tableName);
+		ex.executeVoid("analyze " + tableName);
 		logger.debug("  - analyzed " + tableName + " in " + ex.getTimestamp());
 	}
 
