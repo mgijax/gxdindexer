@@ -40,9 +40,6 @@ public class GxdResultIndexer extends Indexer {
 	// how many Solr documents are kept in memory before being sent to Solr?
 	public int solrCacheSize = 1200;
 	
-	// number of classical expression results considered for sorting
-	public int countOfClassicalResults = 0;
-
 	// count of temp tables produced so far for ordering (to ensure unique names)
 	public int tempTableCount = 0;
 	
@@ -725,22 +722,6 @@ public class GxdResultIndexer extends Indexer {
 	 * -------------------- main indexing method --------------------
 	 */
 	public void index() throws Exception {
-		// get the maximum sequence number assigned for classical
-		// expression results, so we know that RNA-Seq results come
-		// after classical results
-
-		String cmd = "select max(by_assay_type) as max_seqnum "
-			+ "from expression_result_sequence_num";
-
-		ResultSet rs = ex.executeProto(cmd);
-		if (rs.next()) {
-			countOfClassicalResults = rs.getInt("max_seqnum");
-		} else {
-			countOfClassicalResults = 0;
-		}
-		rs.close();
-		logger.info(countOfClassicalResults + " sequence numbers assigned for classical data");
-
 		// pull a bunch of mappings into memory, to make later
 		// processing easier
 
@@ -889,7 +870,7 @@ public class GxdResultIndexer extends Indexer {
 		Integer start = 0;
 		Integer end = rs_tmp.getInt("max_result_key");
 		rs_tmp.close();
-		int chunkSize = 50000;
+		int chunkSize = 100000;
 
 		// While it appears that modValue could be one iteration too low (due
 		// to rounding down), this is accounted for by using <= in the loop.
@@ -1270,7 +1251,7 @@ public class GxdResultIndexer extends Indexer {
 		Integer start = 0;
 		Integer end = rs_tmp.getInt("max_cm_key");
 		rs_tmp.close();
-		int chunkSize = 75000;
+		int chunkSize = 500000;
 
 		// While it appears that modValue could be one iteration too low (due
 		// to rounding down), this is accounted for by using <= in the loop.
@@ -1399,7 +1380,7 @@ public class GxdResultIndexer extends Indexer {
 				// Add the single value fields
 				doc.addField(GxdResultFields.KEY, unique_key);
 				doc.addField(GxdResultFields.MARKER_KEY, markerKey);
-				doc.addField(IndexConstants.MRK_BY_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol") + countOfClassicalResults));
+				doc.addField(IndexConstants.MRK_BY_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
 				doc.addField(GxdResultFields.M_BY_LOCATION, markerByLocation.get(markerKey));
 				doc.addField(GxdResultFields.ASSAY_KEY, assay_key);
 				doc.addField(GxdResultFields.RESULT_KEY, result_key);
@@ -1481,8 +1462,8 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.ANTIBODY_KEY, assayAntibodyKey.get(assay_key));
 
 				// assay sorts
-				doc.addField(GxdResultFields.A_BY_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol") + countOfClassicalResults));
-				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_gene_symbol") + countOfClassicalResults));
+				doc.addField(GxdResultFields.A_BY_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
+				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_gene_symbol")));
 
 				// result summary
 				doc.addField(GxdResultFields.DETECTION_LEVEL, detectionLevel);
@@ -1605,13 +1586,13 @@ public class GxdResultIndexer extends Indexer {
 				}
 
 				// result sorts
-				doc.addField(GxdResultFields.R_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_assay_type") + countOfClassicalResults));
-				doc.addField(GxdResultFields.R_BY_MRK_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol") + countOfClassicalResults));
-				doc.addField(GxdResultFields.R_BY_AGE, Integer.toString(rs.getInt("r_by_age") + countOfClassicalResults));
-				doc.addField(GxdResultFields.R_BY_STRUCTURE, Integer.toString(rs.getInt("r_by_structure") + countOfClassicalResults));
-				doc.addField(GxdResultFields.R_BY_EXPRESSED, Integer.toString(rs.getInt("r_by_expressed") + countOfClassicalResults));
+				doc.addField(GxdResultFields.R_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_assay_type")));
+				doc.addField(GxdResultFields.R_BY_MRK_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
+				doc.addField(GxdResultFields.R_BY_AGE, Integer.toString(rs.getInt("r_by_age")));
+				doc.addField(GxdResultFields.R_BY_STRUCTURE, Integer.toString(rs.getInt("r_by_structure")));
+				doc.addField(GxdResultFields.R_BY_EXPRESSED, Integer.toString(rs.getInt("r_by_expressed")));
 				doc.addField(GxdResultFields.R_BY_MUTANT_ALLELES, "0");
-				doc.addField(GxdResultFields.R_BY_REFERENCE, Integer.toString(rs.getInt("r_by_reference") + countOfClassicalResults));
+				doc.addField(GxdResultFields.R_BY_REFERENCE, Integer.toString(rs.getInt("r_by_reference")));
 
 				// add matrix grouping fields
 				String stageMatrixGroup = joiner(myEmapaID, isExpressed, theilerStage);
@@ -1633,9 +1614,7 @@ public class GxdResultIndexer extends Indexer {
 			logger.info("Finished chunk; RAM used: " + ramUsed + " -> " + memoryUsed());
 
 			if(memoryPercent() > .80) { printMemory(); commit(); }
-			else if (i % 4 == 0) {
-				// To avoid out of memory errors on the server, we need to commit frequently regardless of the memoryPercent()
-				// of the Indexer.  We use a mod factor to try to spread out the commits and save a little performance.
+			else {
 				commit();
 			}
 			
