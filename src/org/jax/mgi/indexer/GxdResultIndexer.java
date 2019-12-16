@@ -1017,7 +1017,7 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.ANTIBODY_KEY, assayAntibodyKey.get(assay_key));
 
 				// assay sorts
-				doc.addField(GxdResultFields.A_BY_SYMBOL, rs.getString("r_by_assay_type"));
+				doc.addField(GxdResultFields.A_BY_SYMBOL, rs.getString("r_by_gene_symbol"));
 				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, rs.getString("r_by_assay_type"));
 
 				// result summary
@@ -1463,7 +1463,7 @@ public class GxdResultIndexer extends Indexer {
 
 				// assay sorts
 				doc.addField(GxdResultFields.A_BY_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
-				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_gene_symbol")));
+				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_assay_type")));
 
 				// result summary
 				doc.addField(GxdResultFields.DETECTION_LEVEL, detectionLevel);
