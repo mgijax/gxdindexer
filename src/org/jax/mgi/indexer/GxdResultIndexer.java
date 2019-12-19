@@ -55,6 +55,7 @@ public class GxdResultIndexer extends Indexer {
 	// caches of marker data (key is marker key)
 	public Map<String, String> markerSymbol = null;
 	public Map<String, String> markerID = null;
+	public Map<String, String> ensemblGMID = null;
 	public Map<String, String> markerName = null;
 	public Map<String, String> markerSubtype = null;
 	public Map<String, String> markerBySymbol = null;
@@ -199,29 +200,29 @@ public class GxdResultIndexer extends Indexer {
 		cytoband = new HashMap<String, String>();
 		strand = new HashMap<String, String>();
 		chromosome = new HashMap<String, String>();
+		ensemblGMID = new HashMap<String, String>();
 		
 		String markerQuery = "select distinct m.marker_key, m.symbol, m.primary_id, m.name, m.marker_subtype, "
 			+ " s.by_location, s.by_symbol, loc.chromosome, loc.cytogenetic_offset, loc.start_coordinate, "
-			+ " loc.end_coordinate, loc.strand "
-			+ "from expression_result_summary e, marker m, marker_sequence_num s, marker_location loc "
+			+ " loc.end_coordinate, loc.strand, mid.acc_id as ensembl_gm_id "
+			+ "from expression_result_summary e "
+			+ "inner join marker m on (e.marker_key = m.marker_key) "
+			+ "inner join marker_sequence_num s on (e.marker_key = s.marker_key) "
+			+ "inner join marker_location loc on (e.marker_key = loc.marker_key and loc.sequence_num = 1) "
+			+ "left outer join marker_id mid on (e.marker_key = mid.marker_key and mid.logical_db = 'Ensembl Gene Model') "
 			+ "where e.result_key > " + startKey
-			+ " and e.result_key <= " + endKey
-			+ " and e.marker_key = s.marker_key"
-			+ " and e.marker_key = loc.marker_key"
-			+ " and loc.sequence_num = 1"
-			+ " and e.marker_key = m.marker_key";
+			+ " and e.result_key <= " + endKey;
 
 		if (forRnaSeq) {
 			// adjust the query if we need to be working with RNA-Seq data rather than classical
 			markerQuery = "select distinct m.marker_key, m.symbol, m.primary_id, m.name, m.marker_subtype, "
 				+ " s.by_location, s.by_symbol, loc.chromosome, loc.cytogenetic_offset, loc.start_coordinate, "
-				+ " loc.end_coordinate, loc.strand "
-				+ "from marker m, marker_sequence_num s, "
-				+ " marker_location loc "
-				+ "where m.organism = 'mouse' "
-				+ " and m.marker_key = loc.marker_key "
-				+ " and loc.sequence_num = 1 "
-				+ " and s.marker_key = m.marker_key";
+				+ " loc.end_coordinate, loc.strand, mid.acc_id as ensembl_gm_id "
+				+ "from marker m "
+				+ "inner join marker_sequence_num s on (s.marker_key = m.marker_key) "
+				+ "inner join marker_location loc on (m.marker_key = loc.marker_key and loc.sequence_num = 1) "
+				+ "left outer join marker_id mid on (m.marker_key = mid.marker_key and mid.logical_db = 'Ensembl Gene Model') "
+				+ "where m.organism = 'mouse' ";
 		}
 		
 		ResultSet rs = ex.executeProto(markerQuery);
@@ -238,6 +239,9 @@ public class GxdResultIndexer extends Indexer {
 			cytoband.put(markerKey, rs.getString("cytogenetic_offset"));
 			strand.put(markerKey, rs.getString("strand"));
 			chromosome.put(markerKey, rs.getString("chromosome"));
+			if (rs.getString("ensembl_gm_id") != null) {
+				ensemblGMID.put(markerKey, rs.getString("ensembl_gm_id"));
+			}
 		}
 		rs.close();
 		logger.info("Cached data for " + markerID.size() + " markers");
@@ -991,6 +995,9 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
 				doc.addField(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.addField(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
+				if (ensemblGMID.containsKey(markerKey)) {
+					doc.addField(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
+				}
 
 				// also add symbol and current name to searchable nomenclature
 				doc.addField(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
@@ -1309,7 +1316,7 @@ public class GxdResultIndexer extends Indexer {
 				+ "  sn.by_structure as r_by_structure, "
 				+ "  sn.by_reference as r_by_reference, "
 				+ "  sm.biological_replicate_count, "
-				+ "  cs.sex, cs.note, g.is_conditional "
+				+ "  cs.sex, cs.note, g.is_conditional, sm.consolidated_sample_key "
 				+ "from expression_ht_consolidated_sample_measurement sm, "
 				+ "  " + seqNumTable + " sn, "
 				+ "  expression_ht_consolidated_sample cs, "
@@ -1405,6 +1412,7 @@ public class GxdResultIndexer extends Indexer {
 					}
 				}
 				doc.addField(GxdResultFields.NOTES, note);
+				doc.addField(GxdResultFields.CONSOLIDATED_SAMPLE_KEY, rs.getString("consolidated_sample_key"));
 
 				boolean isWildType = "-1".equals(genotypeKey)
 					|| (combination == null)
@@ -1421,6 +1429,9 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
 				doc.addField(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.addField(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
+				if (ensemblGMID.containsKey(markerKey)) {
+					doc.addField(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
+				}
 
 				// also add symbol and current name to searchable nomenclature
 				doc.addField(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
