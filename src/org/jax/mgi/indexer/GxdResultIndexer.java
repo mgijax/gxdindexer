@@ -1249,6 +1249,17 @@ public class GxdResultIndexer extends Indexer {
 			Map<String, List<String>> structureAncestorKeyMap,
 			Map<String, List<String>> structureSynonymMap) throws Exception {
 
+		// In order to successfully have Whole Genome (RNA-Seq) assays appear after the classical assays (with
+		// a single marker) on the Assays tab of the summary page, we need to look up the maximum sequence
+		// number for symbols.  (The sorting on the Assays tab is based on the sequence number of the first
+		// marker when using Solr's group by function.  We need to push the Whole Genome ones below those and
+		// should probably sort them by the Reference column.)
+		
+		ResultSet rs_max = ex.executeProto("select max(by_symbol) as max_symbol from uni_by_symbol");
+		rs_max.next();
+		int maxSymbol = rs_max.getInt("max_symbol");
+		rs_max.close();
+		
 		// find the maximum result key, so we have an upper bound when
 		// stepping through chunks of results
 
@@ -1472,9 +1483,10 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.PROBE_KEY, assayProbeKey.get(assay_key));
 				doc.addField(GxdResultFields.ANTIBODY_KEY, assayAntibodyKey.get(assay_key));
 
-				// assay sorts
-				doc.addField(GxdResultFields.A_BY_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
-				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_assay_type")));
+				// assay sorts (For RNA-Seq, push these below the classical data and sort them by reference.)
+				int byReference = rs.getInt("r_by_reference");
+				doc.addField(GxdResultFields.A_BY_SYMBOL, maxSymbol + byReference);
+				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, maxSymbol + byReference);
 
 				// result summary
 				doc.addField(GxdResultFields.DETECTION_LEVEL, detectionLevel);
