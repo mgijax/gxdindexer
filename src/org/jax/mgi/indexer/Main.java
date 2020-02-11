@@ -30,6 +30,7 @@ public class Main {
 		indexerMap.put("gxdResult", new GxdResultIndexer());
 		indexerMap.put("gxdResultHasImage", new GxdResultHasImageIndexer());
 		indexerMap.put("gxdDagEdge", new GxdDagEdgeIndexer());
+		indexerMap.put("gxdConsolidatedSample", new GxdConsolidatedSampleIndexer());
 	}
 
 	public static int maxThreads = 1;
