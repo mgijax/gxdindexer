@@ -5,7 +5,7 @@
 #	'buildAllIndexes' scripts. The argument is used to determine
 #	which set of Solr indexes to build.
 
-USAGE='Usage: $0 [ pub1 | pub2 | bot1 | bot2 ]
+USAGE='Usage: $0 [ pub1 | pub2 ]
 '
 
 # ensure that we are not running via a symbolic link
@@ -31,17 +31,12 @@ cd `dirname $0`
 . ../gxdindexer.config
 
 # Use the script argument to determine which Solr host to use to build the
-# Solr indexes. We need to build the first or second instance for public
-# or the robot.
+# Solr indexes. We need to build the first or second instance for public.
 
 if [ "${1}" = "pub1" ]; then
 	SOLR_HOST=${PUB_GXDSOLR1}
 elif [ "${1}" = "pub2" ]; then
 	SOLR_HOST=${PUB_GXDSOLR2}
-elif [ "${1}" = "bot1" ]; then
-	SOLR_HOST=${BOT_GXDSOLR1}
-elif [ "${1}" = "bot2" ]; then
-	SOLR_HOST=${BOT_GXDSOLR2}
 else
 	echo ${USAGE}
 	exit 1
