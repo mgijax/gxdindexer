@@ -16,6 +16,7 @@ import java.util.Set;
 
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
+import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient.Builder;
 import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.gxdindexer.shr.SQLExecutor;
 import org.slf4j.Logger;
@@ -50,6 +51,10 @@ public abstract class Indexer implements Runnable {
 
 	protected Indexer(String solrIndexName) {
 		this.solrIndexName = solrIndexName;
+
+		// Increase stall time detection (in ms).  The default is 15 seconds, which is far too quick for
+		// substantial commits.
+		System.setProperty("solr.cloud.client.stallTime", "119999");
 	}
 
 	public void setupConnection() throws Exception {
@@ -68,11 +73,18 @@ public abstract class Indexer implements Runnable {
 		}
 		logger.info("db connection info: "+ ex);
 
-		String solrBaseUrl = props.getProperty("index.url");
+		String solrUrl = props.getProperty("index.url") + "/" + solrIndexName;
 		
-		client = new ConcurrentUpdateSolrClient(solrBaseUrl + "/" + solrIndexName, 160, 4);
+		logger.info("Setting up index: " + solrUrl);
+		try {
+			client = new ConcurrentUpdateSolrClient.Builder(solrUrl).withQueueSize(160).withThreadCount(4).build();
+		} catch (Throwable e) {
+			logger.info("Failed to set up solr client:");
+			e.printStackTrace();
+			throw e;
+		}
 		
-		logger.info("Working with index: " + solrBaseUrl + "/" + solrIndexName);
+		logger.info("Working with index: " + solrUrl);
 
 		client.setConnectionTimeout(3 * 60000);
 		client.setSoTimeout(3 * 60000);
@@ -80,9 +92,16 @@ public abstract class Indexer implements Runnable {
 		try {
 			logger.info("Deleting current index: " + solrIndexName);
 			client.deleteByQuery("*:*");
+			logger.info("After delete statement");
 			commit();
+			logger.info("After commit statement");
 		}
-		catch (Exception e) { throw e; }
+		catch (Throwable e) {
+			logger.info("Failed to delete documents from: " + solrIndexName);
+			e.printStackTrace();
+			throw e; 
+		}
+		logger.info("Done with setupConnection()");
 	}
 
 	/*
@@ -141,6 +160,7 @@ public abstract class Indexer implements Runnable {
 				client.optimize();
 			}
 		} catch (SolrServerException | IOException e) {
+			logger.info("Exception in optimize");
 			e.printStackTrace();
 		}
 	}
@@ -155,6 +175,7 @@ public abstract class Indexer implements Runnable {
 				client.commit();
 			}
 		} catch (SolrServerException | IOException e) {
+			logger.info("Exception in commit");
 			e.printStackTrace();
 		}
 	}
@@ -235,12 +256,10 @@ public abstract class Indexer implements Runnable {
 		
 		try {
 			client.add(docs);
-		} catch (SolrServerException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
+		} catch (SolrServerException | IOException e) {
+			logger.info("Exception in writeDocs");
 			e.printStackTrace();
 		}
-		
 	}
 
 	@Override
@@ -416,13 +435,13 @@ public abstract class Indexer implements Runnable {
 	// create an index on the given column in the given table
 	protected void createTempIndex(String tableName,String column) {
 		indexCounter += 1;
-		ex.executeVoid("create index tmp_idx"+indexCounter+" on "+tableName+" ("+column+")");
+		this.ex.executeVoid("create index tmp_idx"+indexCounter+" on "+tableName+" ("+column+")");
 		logger.debug("  - created index tmp_idx" + indexCounter + " in " + ex.getTimestamp());
 	}
 	
 	// run 'analyze' on the given table
 	protected void analyze(String tableName) {
-		ex.executeVoid("analyze " + tableName);
+		this.ex.executeVoid("analyze " + tableName);
 		logger.debug("  - analyzed " + tableName + " in " + ex.getTimestamp());
 	}
 
