@@ -435,9 +435,8 @@ public class GxdResultIndexer extends Indexer {
 		Map<String, Map<String, Map<String, String>>> mutatedInMap = new HashMap<String, Map<String, Map<String, String>>>();
 
 		logger.info("building map of specimen mutated in genes");
-		String mutatedInQuery = "select m.marker_key, " + "  m.symbol, "
-				+ "  m.name, " + "  ag.genotype_key " + "from marker m, "
-				+ "  marker_to_allele ma, " + "  allele_to_genotype ag "
+		String mutatedInQuery = "select m.marker_key, m.symbol, m.name, ag.genotype_key "
+				+ "from marker m, marker_to_allele ma, allele_to_genotype ag "
 				+ "where ag.allele_key = ma.allele_key "
 				+ "  and ma.marker_key = m.marker_key"
 				+ "  and (exists (select 1 from expression_result_summary ers "
