@@ -320,18 +320,24 @@ public class GxdResultIndexer extends Indexer {
 			+ " where result_key > " + startKey + " and result_key <= " + endKey;
 
 		if (forRnaSeq) {
-			// adjust the query when dealing with RNA-Seq data
+			// adjust the query when dealing with RNA-Seq data -- and be sure to consider EMAPS relationships
+			// so the results are accurate based on annotated stage
 			systemQuery = "select distinct sm.consolidated_measurement_key as result_key, "
 				+ "  ta.ancestor_term as anatomical_system, "
-				+ "  ta.ancestor_primary_id as emapa_id "
+				+ "  tas.emapa_id "
 				+ "from expression_ht_consolidated_sample_measurement sm, "
 				+ " expression_ht_consolidated_sample cs, "
+				+ " term_emap emap, term_emap emaps, term emapa_terms, "
 				+ " term_ancestor ta, tmp_anatomical_systems tas "
 				+ "where sm.consolidated_measurement_key >= " + startKey
 				+ " and sm.consolidated_measurement_key <= " + endKey
 				+ " and sm.consolidated_sample_key = cs.consolidated_sample_key "
-				+ " and cs.emapa_key = ta.term_key "
-				+ " and ta.ancestor_primary_id = tas.emapa_id";
+				+ " and cs.emapa_key = emap.emapa_term_key "
+				+ " and cs.theiler_stage::int = emap.stage "
+				+ " and emap.term_key = ta.term_key "
+				+ " and ta.ancestor_term_key = emaps.term_key "
+				+ " and emaps.emapa_term_key = emapa_terms.term_key "
+				+ " and emapa_terms.primary_id = tas.emapa_id";
 		}
 		
 		ResultSet rs = ex.executeProto(systemQuery);
@@ -441,8 +447,10 @@ public class GxdResultIndexer extends Indexer {
 				+ "  and ma.marker_key = m.marker_key"
 				+ "  and (exists (select 1 from expression_result_summary ers "
 				+ "    where ag.genotype_key = ers.genotype_key)"
-				+ "  or exists (select 1 from expression_ht_consolidated_sample_measurement sm "
-				+ "    where m.marker_key = sm.marker_key) )";
+				+ "  or exists (select 1 from expression_ht_consolidated_sample_measurement sm, "
+				+ "      expression_ht_consolidated_sample cs "
+				+ "    where ag.genotype_key = cs.genotype_key "
+				+ "      and sm.consolidated_sample_key = cs.consolidated_sample_key) )";
 		ResultSet rs = ex.executeProto(mutatedInQuery);
 
 		String gkey; // genotype key
