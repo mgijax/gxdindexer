@@ -919,7 +919,7 @@ public class GxdResultIndexer extends Indexer {
 			String query = "select ers.result_key, "
 					+ "  ers.marker_key, ers.assay_key, ers.assay_type, "
 					+ "  ers.structure_key, ers.theiler_stage, ers.is_expressed, ers.has_image, " 
-					+ "  ers.age_abbreviation,  ers.jnum_id, ers.detection_level, "
+					+ "  ers.age_abbreviation,  ers.jnum_id, ers.detection_level, ct.cell_type, "
 					+ "  ers.age_min, ers.age_max, ers.pattern, emaps.primary_id as emaps_id, "
 					+ "  ers.is_wild_type, ers.genotype_key, ers.reference_key, " 
 					+ "  sp.sex, ersn.by_assaytype r_by_assay_type, "
@@ -933,6 +933,7 @@ public class GxdResultIndexer extends Indexer {
 					+ "inner join term emaps on (ers.structure_key = emaps.term_key) "
 					+ "inner join " + seqNumTable + " ersn on (ersn.result_key = ers.result_key) "
 					+ "left outer join assay_specimen sp on (ers.specimen_key = sp.specimen_key) "
+					+ "left outer join expression_result_cell_type ct on (ers.result_key = ct.result_key) "
 					+ "where ers.assay_type != 'Recombinase reporter'"
 					+ "  and ers.assay_type != 'In situ reporter (transgenic)'"
 					+ "  and ers.result_key > " + start
@@ -988,6 +989,7 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.AGE_MAX, roundAge(rs.getString("age_max")));
 				doc.addField(GxdResultFields.SEX, rs.getString("sex"));
 				doc.addField(GxdResultFields.STRAIN, bgStrains.get(rs.getString("genotype_key")));
+				doc.addField(GxdResultFields.CELL_TYPE, rs.getString("cell_type"));
 
 				boolean isWildType = rs.getString("is_wild_type").equals("1") || rs.getString("genotype_key").equals("-1");
 
