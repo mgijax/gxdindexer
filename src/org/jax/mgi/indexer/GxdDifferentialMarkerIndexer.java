@@ -157,6 +157,37 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 		return exStages;
 	}
 
+	// go through the list of results per marker and identify the exclusive structures, returning a 
+	// mapping from:
+	//		marker key (String) : set of structure keys (Strings)
+	// Because everything traces up the DAG to 'mouse', everything should at least have one exclusive
+	// structure returned.
+	// Use:  This field is used when the user specifies a structure, specifies no stages, and
+	//		checks the "nowhere else" checkbox.
+	private Map<String, Set<String>> findAllStructures(Map<Integer, List<Result>> markerResults) throws Exception {
+		// The easiest way to find the list of exclusive structures appears to be to find the intersection
+		// of the sets of ancestors (each with its annotated structure) for each result.
+		
+		Map<String, Set<String>> allStructures = new HashMap<String, Set<String>>();
+		for (Integer markerKey : markerResults.keySet()) {
+			Set<String> commonStructures = null;
+
+			for (Result result : markerResults.get(markerKey)) {
+				if (result.expressed) {
+					Set<String> resultStructures = new HashSet<String>();
+					resultStructures.addAll(getEmapaAncestors(result.structureKey));
+
+					if (commonStructures == null) {
+						commonStructures = resultStructures;
+					} else {
+						commonStructures.addAll(resultStructures);
+					}
+				}
+			}
+			allStructures.put(markerKey + "", commonStructures);
+		}
+		return allStructures;
+	}
 
 	
 	// get an ordered list of markers that have classical data (not considering RNA-Seq data)
@@ -283,6 +314,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 		Map<String,Structure> structureInfoMap,
 		Map<String,List<String>> structureAncestorIdMap,
 		Map<String,Set<String>> exclusiveStructures,
+		Map<String,Set<String>> allStructures,
 		Map<String,Set<String>> exclusiveStages) {
 
 		String mrkKey = "" + markerKey;
@@ -296,6 +328,9 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 		// populate the exclusive structures and stages fields...
 		if (exclusiveStructures.containsKey(mrkKey)) {
 			doc.addField(GxdResultFields.DIFF_EXCLUSIVE_STRUCTURES, exclusiveStructures.get(mrkKey));
+		}
+		if (allStructures.containsKey(mrkKey)) {
+			doc.addField("allStructures", allStructures.get(mrkKey));
 		}
 		if (exclusiveStages.containsKey(mrkKey)) {
 			doc.addField(GxdResultFields.DIFF_EXCLUSIVE_STAGES, exclusiveStages.get(mrkKey));
@@ -379,20 +414,21 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 
 			Map<Integer,String> markerIDs = getMarkerIDs(startMarkerKey, endMarkerKey); 
 			Map<Integer,List<Result>> markerResults = getMarkerResults(startMarkerKey, endMarkerKey);
+			logger.info(" - gathered results");
 
 			// can walk through markerResults here to find for each marker:
 			// 1. structures where expression happens exclusively (nowhere outside that structure and its descendants)
 			// 2. stages where expression happens exclusively (at no other structures)
-			
-			logger.info(" - gathered results");
 			Map<String,Set<String>> exclusiveStructures = findExclusiveStructures(markerResults);
 			logger.info(" - found exclusiveStructures");
 			Map<String,Set<String>> exclusiveStages = findExclusiveStages(markerResults);
 			logger.info(" - found exclusiveStages");
+			Map<String,Set<String>> allStructures = findAllStructures(markerResults);
+			logger.info(" - found exclusiveStructures");
 
 			// now build & handle solr documents (one per marker)
 			for (Integer markerKey : markerResults.keySet()) {
-				docs.add(buildSolrDoc(markerKey, markerIDs.get(markerKey), markerResults.get(markerKey), structureInfoMap, structureAncestorIdMap, exclusiveStructures, exclusiveStages));
+				docs.add(buildSolrDoc(markerKey, markerIDs.get(markerKey), markerResults.get(markerKey), structureInfoMap, structureAncestorIdMap, exclusiveStructures, allStructures, exclusiveStages));
 
 				if (docs.size() > cacheSize) {
 					writeDocs(docs);
