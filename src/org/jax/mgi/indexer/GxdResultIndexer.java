@@ -164,7 +164,7 @@ public class GxdResultIndexer extends Indexer {
 		allelePairs = new HashMap<String, String>();
 		bgStrains = new HashMap<String, String>();
 
-		String genotypeQuery = "select distinct g.genotype_key, g.combination_1, g.background_strain "
+		String genotypeQuery = "select distinct g.genotype_key, g.combination_2, g.background_strain "
 			+ "from expression_result_summary e, genotype g "
 			+ "where e.result_key > " + startKey
 			+ " and e.result_key <= " + endKey
@@ -172,7 +172,7 @@ public class GxdResultIndexer extends Indexer {
 		
 		if (forRnaSeq) {
 			// adjust the query if we need to be working with RNA-Seq data rather than classical
-			genotypeQuery = "select distinct g.genotype_key, g.combination_1, g.background_strain "
+			genotypeQuery = "select distinct g.genotype_key, g.combination_2, g.background_strain "
 				+ "from expression_ht_consolidated_sample cs, "
 				+ " genotype g "
 				+ "where cs.genotype_key = g.genotype_key";
@@ -180,7 +180,7 @@ public class GxdResultIndexer extends Indexer {
 		
 		ResultSet rs = ex.executeProto(genotypeQuery);
 		while (rs.next()) {
-			allelePairs.put(rs.getString("genotype_key"), rs.getString("combination_1"));
+			allelePairs.put(rs.getString("genotype_key"), rs.getString("combination_2"));
 			bgStrains.put(rs.getString("genotype_key"), rs.getString("background_strain"));
 		}
 		rs.close();
