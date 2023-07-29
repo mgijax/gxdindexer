@@ -9,6 +9,9 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.Properties;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.jax.mgi.gxdindexer.indexer.Indexer;
 
 
@@ -29,7 +32,7 @@ import org.jax.mgi.gxdindexer.indexer.Indexer;
 
 public class SQLExecutor {
 
-	//private Logger logger = LoggerFactory.getLogger(this.getClass());
+	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	public Properties props = new Properties();
 	protected Connection conMGD = null;
 	private String user;
@@ -99,8 +102,10 @@ public class SQLExecutor {
 
 			java.sql.Statement stmt = conMGD.createStatement();
 			start = new Date();
+                        logger.info(cmd);
 			stmt.executeUpdate(cmd);
 			end = new Date();
+                        logger.info("Query took: " + getTimestamp());
 			return;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -116,8 +121,10 @@ public class SQLExecutor {
 			if (conMGD == null)  getMGDConnection();
 			java.sql.Statement stmt = conMGD.createStatement();
 			start = new Date();
+                        logger.info(sql);
 			stmt.execute(sql);
 			end = new Date();
+                        logger.info("Query took: " + getTimestamp());
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.exit(1);
@@ -152,9 +159,11 @@ public class SQLExecutor {
 			if (cursorLimit > 0) {
 				stmt.setFetchSize(cursorLimit);
 			}
+                        logger.info(query);
 			start = new Date();
 			set = stmt.executeQuery(query);
 			end = new Date();
+                        logger.info("Query took: " + getTimestamp());
 			return set;
 		} catch (Exception e) {
 			e.printStackTrace();

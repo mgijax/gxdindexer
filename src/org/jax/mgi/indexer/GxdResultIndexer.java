@@ -442,9 +442,12 @@ public class GxdResultIndexer extends Indexer {
 
 		logger.info("building map of specimen mutated in genes");
 		String mutatedInQuery = "select m.marker_key, m.symbol, m.name, ag.genotype_key "
-				+ "from marker m, marker_to_allele ma, allele_to_genotype ag "
+				+ "from marker m, marker_to_allele ma, allele a, allele_to_genotype ag "
 				+ "where ag.allele_key = ma.allele_key "
 				+ "  and ma.marker_key = m.marker_key"
+				+ "  and ma.allele_key = a.allele_key"
+                                + "  and a.is_recombinase = 0 "
+                                + "  and a.is_wild_type = 0 "
 				+ "  and (exists (select 1 from expression_result_summary ers "
 				+ "    where ag.genotype_key = ers.genotype_key)"
 				+ "  or exists (select 1 from expression_ht_consolidated_sample_measurement sm, "
@@ -505,9 +508,12 @@ public class GxdResultIndexer extends Indexer {
 		logger.info("building map of specimen mutated in allele IDs");
 
 		String mutatedInAlleleQuery = "select distinct a.primary_id acc_id, "
-				+ "  ag.genotype_key " + "from allele a, "
+				+ "  ag.genotype_key "
+                                + "from allele a, "
 				+ "  allele_to_genotype ag "
 				+ "where ag.allele_key = a.allele_key "
+                                + "  and a.is_recombinase = 0 "
+                                + "  and a.is_wild_type = 0 "
 				+ "  and (exists (select 1 from expression_result_summary ers "
 				+ "    where ag.genotype_key = ers.genotype_key)"
 				+ "  or exists (select 1 from expression_ht_consolidated_sample cs "
@@ -735,6 +741,8 @@ public class GxdResultIndexer extends Indexer {
 	public void index() throws Exception {
 		// pull a bunch of mappings into memory, to make later
 		// processing easier
+
+                logger.info("gxdResultIndexer starting run");
 
 		try {
 			markerMpCache = new MarkerMPCache();
