@@ -14,7 +14,7 @@
 	</appender>
 
 	<appender name="FILE" class="org.apache.log4j.RollingFileAppender">
-		<param name="File" value="/home/jsb/jax/data/loads/gxdindexer/logs/gxdindexer.log"/>
+		<param name="File" value="/data/gxdindexer/logs/gxdindexer.log"/>
 		<param name="MaxFileSize" value="10MB"/>
 		<param name="MaxBackupIndex" value="100"/>
 		<layout class="org.apache.log4j.PatternLayout">
