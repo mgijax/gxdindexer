@@ -1,4 +1,4 @@
-package org.jax.mgi.gxdindexer.indexer;
+package org.jax.mgi.gxdindexer;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,6 +11,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.text.NumberFormat;
 
 import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.gxdindexer.shr.MarkerMPCache;
@@ -22,21 +23,25 @@ import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
 import org.jax.mgi.shr.fe.query.SolrLocationTranslator;
 
 /**
- * GxdResultHasImageIndexer
+ * GxdResultIndexer
  *
- * This indexer is beginning a copy of GxdResultIndexer, but customized to
- * include only those results that have an image.  With the addition of RNA-Seq
- * data, the full set of results is too large to efficiently join to the
- * gxdImagePane index.  (Getting a count of images for Hoxd* was over 18
- * seconds.)
+ * @author kstone This index is has the primary responsibility of populating the
+ *         GXD Result solr index. Each document in this index represents an
+ *         assay result. This index can/will have fields to group by assayKey
+ *         and markerKey
+ *
+ *         Note: refactored during 5.x development
  */
 
-public class GxdResultHasImageIndexer extends Indexer {
+public class GxdResultIndexer extends Indexer {
 	// detected values that should be mapped to "yes"
 	public static List<String> detectedYesLevels = Arrays.asList("Present", "Trace", "Weak", "Moderate", "Strong", "Very strong");
 
 	// how many Solr documents are kept in memory before being sent to Solr?
 	public int solrCacheSize = 1200;
+	
+	// count of temp tables produced so far for ordering (to ensure unique names)
+	public int tempTableCount = 0;
 	
 	// caches of genotype data (key is genotype key)
 	public Map<String, String> allelePairs = null;
@@ -50,6 +55,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 	// caches of marker data (key is marker key)
 	public Map<String, String> markerSymbol = null;
 	public Map<String, String> markerID = null;
+	public Map<String, String> ensemblGMID = null;
 	public Map<String, String> markerName = null;
 	public Map<String, String> markerSubtype = null;
 	public Map<String, String> markerBySymbol = null;
@@ -74,12 +80,12 @@ public class GxdResultHasImageIndexer extends Indexer {
 	public Map<String, String> assayAntibodyKey = null;
 	public Map<String, String> assayID = null;
 	
-	public GxdResultHasImageIndexer() {
-		super("gxdResultHasImage");
+	public GxdResultIndexer() {
+		super("gxdResult");
 	}
 
 	// cache data for assays for expression results > startKey and <= endKey
-	public void cacheAssays (int startKey, int endKey) throws SQLException {
+	public void cacheAssays (int startKey, int endKey, boolean forRnaSeq) throws SQLException {
 		assayHasImage = new HashMap<String, String>();
 		assayProbeKey = new HashMap<String, String>();
 		assayAntibodyKey = new HashMap<String, String>();
@@ -91,6 +97,15 @@ public class GxdResultHasImageIndexer extends Indexer {
 			+ "where e.result_key > " + startKey
 			+ " and e.result_key <= " + endKey
 			+ " and e.assay_key = a.assay_key ";
+		
+		// adjust the query if we need to work with RNA-Seq data
+		if (forRnaSeq) {
+			assayQuery = "select distinct cs.experiment_key as assay_key, 0 as has_image, null as probe_key, "
+				+ " null as antibody_key, e.primary_id as assay_id "
+				+ "from expression_ht_consolidated_sample cs, "
+				+ "  expression_ht_experiment e "
+				+ "where cs.experiment_key = e.experiment_key ";
+		}
 		
 		ResultSet rs = ex.executeProto(assayQuery);
 		while (rs.next()) {
@@ -105,7 +120,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 	}
 	
 	// cache data for structures for expression results > startKey and <= endKey
-	public void cacheTerms (int startKey, int endKey) throws SQLException {
+	public void cacheTerms (int startKey, int endKey, boolean forRnaSeq) throws SQLException {
 		structureID = new HashMap<String, String>();
 		emapaID = new HashMap<String, String>();
 		printname = new HashMap<String, String>();
@@ -120,6 +135,19 @@ public class GxdResultHasImageIndexer extends Indexer {
 			+ " and e.structure_key = mapping.term_key "
 			+ " and mapping.emapa_term_key = emapa.term_key";
 		
+		if (forRnaSeq) {
+			// adjust the query to deal with RNA-Seq data rather than classical expression data
+			structureQuery = "select distinct emaps.term_key as structure_key, "
+				+ "  emapa.term as structure_printname, "
+				+ "  emaps.primary_id, emapa.primary_id as emapa_id "
+				+ "from  expression_ht_consolidated_sample cs, "
+				+ "  term emapa, term_emap mapping, term emaps "
+				+ "where cs.emapa_key = emapa.term_key "
+				+ "  and emapa.term_key = mapping.emapa_term_key "
+				+ "  and cs.theiler_stage::integer = mapping.stage "
+				+ "  and mapping.term_key = emaps.term_key";
+		}
+		
 		ResultSet rs = ex.executeProto(structureQuery);
 		while (rs.next()) {
 			String structureKey = rs.getString("structure_key");
@@ -132,19 +160,27 @@ public class GxdResultHasImageIndexer extends Indexer {
 	}
 	
 	// cache data for genotypes for expression results > startKey and <= endKey
-	public void cacheGenotypes (int startKey, int endKey) throws SQLException {
+	public void cacheGenotypes (int startKey, int endKey, boolean forRnaSeq) throws SQLException {
 		allelePairs = new HashMap<String, String>();
 		bgStrains = new HashMap<String, String>();
 
-		String genotypeQuery = "select distinct g.genotype_key, g.combination_1, g.background_strain "
+		String genotypeQuery = "select distinct g.genotype_key, g.combination_2, g.background_strain "
 			+ "from expression_result_summary e, genotype g "
 			+ "where e.result_key > " + startKey
 			+ " and e.result_key <= " + endKey
 			+ " and e.genotype_key = g.genotype_key";
 		
+		if (forRnaSeq) {
+			// adjust the query if we need to be working with RNA-Seq data rather than classical
+			genotypeQuery = "select distinct g.genotype_key, g.combination_2, g.background_strain "
+				+ "from expression_ht_consolidated_sample cs, "
+				+ " genotype g "
+				+ "where cs.genotype_key = g.genotype_key";
+		}
+		
 		ResultSet rs = ex.executeProto(genotypeQuery);
 		while (rs.next()) {
-			allelePairs.put(rs.getString("genotype_key"), rs.getString("combination_1"));
+			allelePairs.put(rs.getString("genotype_key"), rs.getString("combination_2"));
 			bgStrains.put(rs.getString("genotype_key"), rs.getString("background_strain"));
 		}
 		rs.close();
@@ -152,7 +188,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 	}
 	
 	// cache data for markers for expression results > startKey and <= endKey
-	public void cacheMarkers (int startKey, int endKey) throws SQLException {
+	public void cacheMarkers (int startKey, int endKey, boolean forRnaSeq) throws SQLException {
 		markerSymbol = new HashMap<String, String>();
 		markerID = new HashMap<String, String>();
 		markerName = new HashMap<String, String>();
@@ -164,17 +200,30 @@ public class GxdResultHasImageIndexer extends Indexer {
 		cytoband = new HashMap<String, String>();
 		strand = new HashMap<String, String>();
 		chromosome = new HashMap<String, String>();
+		ensemblGMID = new HashMap<String, String>();
 		
 		String markerQuery = "select distinct m.marker_key, m.symbol, m.primary_id, m.name, m.marker_subtype, "
 			+ " s.by_location, s.by_symbol, loc.chromosome, loc.cytogenetic_offset, loc.start_coordinate, "
-			+ " loc.end_coordinate, loc.strand "
-			+ "from expression_result_summary e, marker m, marker_sequence_num s, marker_location loc "
+			+ " loc.end_coordinate, loc.strand, mid.acc_id as ensembl_gm_id "
+			+ "from expression_result_summary e "
+			+ "inner join marker m on (e.marker_key = m.marker_key) "
+			+ "inner join marker_sequence_num s on (e.marker_key = s.marker_key) "
+			+ "inner join marker_location loc on (e.marker_key = loc.marker_key and loc.sequence_num = 1) "
+			+ "left outer join marker_id mid on (e.marker_key = mid.marker_key and mid.logical_db = 'Ensembl Gene Model') "
 			+ "where e.result_key > " + startKey
-			+ " and e.result_key <= " + endKey
-			+ " and e.marker_key = s.marker_key"
-			+ " and e.marker_key = loc.marker_key"
-			+ " and loc.sequence_num = 1"
-			+ " and e.marker_key = m.marker_key";
+			+ " and e.result_key <= " + endKey;
+
+		if (forRnaSeq) {
+			// adjust the query if we need to be working with RNA-Seq data rather than classical
+			markerQuery = "select distinct m.marker_key, m.symbol, m.primary_id, m.name, m.marker_subtype, "
+				+ " s.by_location, s.by_symbol, loc.chromosome, loc.cytogenetic_offset, loc.start_coordinate, "
+				+ " loc.end_coordinate, loc.strand, mid.acc_id as ensembl_gm_id "
+				+ "from marker m "
+				+ "inner join marker_sequence_num s on (s.marker_key = m.marker_key) "
+				+ "inner join marker_location loc on (m.marker_key = loc.marker_key and loc.sequence_num = 1) "
+				+ "left outer join marker_id mid on (m.marker_key = mid.marker_key and mid.logical_db = 'Ensembl Gene Model') "
+				+ "where m.organism = 'mouse' ";
+		}
 		
 		ResultSet rs = ex.executeProto(markerQuery);
 		while (rs.next()) {
@@ -190,6 +239,9 @@ public class GxdResultHasImageIndexer extends Indexer {
 			cytoband.put(markerKey, rs.getString("cytogenetic_offset"));
 			strand.put(markerKey, rs.getString("strand"));
 			chromosome.put(markerKey, rs.getString("chromosome"));
+			if (rs.getString("ensembl_gm_id") != null) {
+				ensemblGMID.put(markerKey, rs.getString("ensembl_gm_id"));
+			}
 		}
 		rs.close();
 		logger.info("Cached data for " + markerID.size() + " markers");
@@ -259,18 +311,42 @@ public class GxdResultHasImageIndexer extends Indexer {
 	 * each of which is a high-level EMAPA term (a high-level ancestor of
 	 * the structure noted in the result.  Returns for result keys > startKey and <= endKey.
 	 */
-	private Map<String, Set<String>> getAnatomicalSystemMap(int startKey, int endKey) throws Exception {
+	private Map<String, Set<String>> getAnatomicalSystemMap(int startKey, int endKey, boolean forRnaSeq) throws Exception {
 		logger.info ("building map of high-level EMAPA terms for results " + startKey + ".." + endKey);
 		
 		Map<String, Set<String>> systemMap = new HashMap<String, Set<String>>();
 
 		String systemQuery = "select result_key, anatomical_system, emapa_id from expression_result_anatomical_systems"
 			+ " where result_key > " + startKey + " and result_key <= " + endKey;
+
+		if (forRnaSeq) {
+			// adjust the query when dealing with RNA-Seq data -- and be sure to consider EMAPS relationships
+			// so the results are accurate based on annotated stage
+			systemQuery = "select distinct sm.consolidated_measurement_key as result_key, "
+				+ "  ta.ancestor_term as anatomical_system, "
+				+ "  tas.emapa_id "
+				+ "from expression_ht_consolidated_sample_measurement sm, "
+				+ " expression_ht_consolidated_sample cs, "
+				+ " term_emap emap, term_emap emaps, term emapa_terms, "
+				+ " term_ancestor ta, tmp_anatomical_systems tas "
+				+ "where sm.consolidated_measurement_key >= " + startKey
+				+ " and sm.consolidated_measurement_key <= " + endKey
+				+ " and sm.consolidated_sample_key = cs.consolidated_sample_key "
+				+ " and cs.emapa_key = emap.emapa_term_key "
+				+ " and cs.theiler_stage::int = emap.stage "
+				+ " and emap.term_key = ta.term_key "
+				+ " and ta.ancestor_term_key = emaps.term_key "
+				+ " and emaps.emapa_term_key = emapa_terms.term_key "
+				+ " and emapa_terms.primary_id = tas.emapa_id";
+		}
 		
 		ResultSet rs = ex.executeProto(systemQuery);
 
 		while (rs.next()) {
 			String resultKey = rs.getString("result_key");
+			if (forRnaSeq) {
+				resultKey = "rnaseq" + resultKey;
+			}
 			String system = rs.getString("anatomical_system") + "_" + rs.getString("emapa_id");
 
 			if (!systemMap.containsKey(resultKey)) {
@@ -365,15 +441,19 @@ public class GxdResultHasImageIndexer extends Indexer {
 		Map<String, Map<String, Map<String, String>>> mutatedInMap = new HashMap<String, Map<String, Map<String, String>>>();
 
 		logger.info("building map of specimen mutated in genes");
-		String mutatedInQuery = "select m.marker_key, " + "  m.symbol, "
-				+ "  m.name, " + "  ag.genotype_key " + "from marker m, "
-				+ "  marker_to_allele ma, " + "  allele_to_genotype ag "
+		String mutatedInQuery = "select m.marker_key, m.symbol, m.name, ag.genotype_key "
+				+ "from marker m, marker_to_allele ma, allele a, allele_to_genotype ag "
 				+ "where ag.allele_key = ma.allele_key "
 				+ "  and ma.marker_key = m.marker_key"
+				+ "  and ma.allele_key = a.allele_key"
+                                + "  and a.is_recombinase = 0 "
+                                + "  and a.is_wild_type = 0 "
 				+ "  and (exists (select 1 from expression_result_summary ers "
 				+ "    where ag.genotype_key = ers.genotype_key)"
-				+ "  or exists (select 1 from expression_ht_consolidated_sample_measurement sm "
-				+ "    where m.marker_key = sm.marker_key) )";
+				+ "  or exists (select 1 from expression_ht_consolidated_sample_measurement sm, "
+				+ "      expression_ht_consolidated_sample cs "
+				+ "    where ag.genotype_key = cs.genotype_key "
+				+ "      and sm.consolidated_sample_key = cs.consolidated_sample_key) )";
 		ResultSet rs = ex.executeProto(mutatedInQuery);
 
 		String gkey; // genotype key
@@ -428,9 +508,11 @@ public class GxdResultHasImageIndexer extends Indexer {
 		logger.info("building map of specimen mutated in allele IDs");
 
 		String mutatedInAlleleQuery = "select distinct a.primary_id acc_id, "
-				+ "  ag.genotype_key " + "from allele a, "
+				+ "  ag.genotype_key "
+                                + "from allele a, "
 				+ "  allele_to_genotype ag "
 				+ "where ag.allele_key = a.allele_key "
+                                + "  and a.is_wild_type = 0 "
 				+ "  and (exists (select 1 from expression_result_summary ers "
 				+ "    where ag.genotype_key = ers.genotype_key)"
 				+ "  or exists (select 1 from expression_ht_consolidated_sample cs "
@@ -659,6 +741,8 @@ public class GxdResultHasImageIndexer extends Indexer {
 		// pull a bunch of mappings into memory, to make later
 		// processing easier
 
+                logger.info("gxdResultIndexer starting run");
+
 		try {
 			markerMpCache = new MarkerMPCache();
 		} catch (Exception e) {
@@ -721,6 +805,9 @@ public class GxdResultHasImageIndexer extends Indexer {
 		indexClassicalData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
 			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
 			structureSynonymMap);
+		indexRnaSeqData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
+			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
+			structureSynonymMap);
 		this.setSkipOptimizer(true);
 	}
 		
@@ -735,6 +822,49 @@ public class GxdResultHasImageIndexer extends Indexer {
 		for (String goTerm : markerGoCache.getTermsMF(markerKey)) {
 			doc.addField(GxdResultFields.GO_HEADERS_MF, goTerm);
 		}
+	}
+
+	// Build a temp table with ordering data for results between the two keys, either for
+	// for classical data (true) or RNA-Seq data (false).  Technically, this isn't really needed
+	// (as it could just be done with joins in the main indexing queries), but it's in here to 
+	// help simplify later code and make it more maintainable.
+	public String buildOrderingTable(int start, int end, boolean isClassical) throws Exception {
+		String tableName = "orderingTable" + tempTableCount;
+		String indexName = "otIndex" + tempTableCount;
+		
+		int isClassicalFlag = 1;
+		if (!isClassical) {
+			isClassicalFlag = 0;	// looking for RNA-Seq data, not classical
+		}
+
+		String cmd = "select r.result_key, s.by_symbol, t.by_assaytype, a.by_age, "
+			+ "  d.by_detected, ref.by_reference, st.by_structure "
+			+ " into temporary table " + tableName
+			+ " from universal_expression_result r, uni_by_symbol s, uni_by_age a, "
+			+ "  uni_by_assaytype t, uni_by_detected d, uni_by_reference ref, "
+			+ "  uni_by_structure st "
+			+ " where r.is_classical = " + isClassicalFlag
+			+ "  and r.result_key > " + start
+			+ "  and r.result_key <= " + end
+			+ "  and r.uni_key = s.uni_key "
+			+ "  and r.uni_key = a.uni_key "
+			+ "  and r.uni_key = t.uni_key "
+			+ "  and r.uni_key = d.uni_key "
+			+ "  and r.uni_key = ref.uni_key "
+			+ "  and r.uni_key = st.uni_key";
+		ex.executeVoid(cmd);
+		logger.info("Created " + tableName);
+		
+		ex.executeVoid("create index " + indexName + " on " + tableName + "(result_key)");
+		logger.info("Indexed " + tableName);
+		tempTableCount++;
+		return tableName;
+	}
+
+	// drop the temp table with the given name
+	public void dropTempTable(String s) throws Exception {
+		ex.executeVoid("drop table " + s);
+		logger.info("Dropped temp table: " + s);
 	}
 
 	// index classical expression data (not RNA-Seq data)
@@ -758,7 +888,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		Integer start = 0;
 		Integer end = rs_tmp.getInt("max_result_key");
 		rs_tmp.close();
-		int chunkSize = 50000;
+		int chunkSize = 100000;
 
 		// While it appears that modValue could be one iteration too low (due
 		// to rounding down), this is accounted for by using <= in the loop.
@@ -778,14 +908,16 @@ public class GxdResultHasImageIndexer extends Indexer {
 			start = i * chunkSize;
 			end = start + chunkSize;
 
-			cacheGenotypes(start, end);		// cache allele combinations for genotypes for this chunk
-			cacheMarkers(start, end);		// cache marker symbols, names, IDs, and subtypes for this chunk
+			cacheGenotypes(start, end, false);		// cache allele combinations for genotypes for this chunk
+			cacheMarkers(start, end, false);		// cache marker symbols, names, IDs, and subtypes for this chunk
 			cacheReferences(start, end);			// cache pubmed IDs and citations for references for this chunk
-			cacheAssays(start, end);			// cache data for assays in this chunk
-			cacheTerms(start, end);			// cache data for structures in this chunk
+			cacheAssays(start, end, false);			// cache data for assays in this chunk
+			cacheTerms(start, end, false);			// cache data for structures in this chunk
+			
+			String seqNumTable = buildOrderingTable(start, end, true);
 			
 			// mapping from result key to List of high-level EMAPA structures for each result
-			Map<String, Set<String>> systemMap = getAnatomicalSystemMap(start, end);
+			Map<String, Set<String>> systemMap = getAnatomicalSystemMap(start, end, false);
 
 			// get List of figure labels for each expression result key
 			Map<String, Set<String>> imageMap = getImageMap(start, end);
@@ -794,20 +926,19 @@ public class GxdResultHasImageIndexer extends Indexer {
 			String query = "select ers.result_key, "
 					+ "  ers.marker_key, ers.assay_key, ers.assay_type, "
 					+ "  ers.structure_key, ers.theiler_stage, ers.is_expressed, ers.has_image, " 
-					+ "  ers.age_abbreviation,  ers.jnum_id, ers.detection_level, "
+					+ "  ers.age_abbreviation,  ers.jnum_id, ers.detection_level, ct.cell_type, "
 					+ "  ers.age_min, ers.age_max, ers.pattern, emaps.primary_id as emaps_id, "
-					+ "  ers.is_wild_type, ers.genotype_key, ers.reference_key, ct.cell_type, " 
-					+ "  sp.sex, ersn.by_assay_type r_by_assay_type, "
-					+ "  ersn.by_gene_symbol r_by_gene_symbol, "
+					+ "  ers.is_wild_type, ers.genotype_key, ers.reference_key, " 
+					+ "  sp.sex, ersn.by_assaytype r_by_assay_type, "
+					+ "  ersn.by_symbol r_by_gene_symbol, "
 					+ "  ersn.by_age r_by_age, "
-					+ "  ersn.by_expressed r_by_expressed, "
+					+ "  ersn.by_detected r_by_expressed, "
 					+ "  ersn.by_structure r_by_structure, "
-					+ "  ersn.by_mutant_alleles r_by_mutant_alleles, "
 					+ "  ersn.by_reference r_by_reference "
 					+ "from expression_result_summary ers "
 					+ "inner join marker_counts mc on (ers.marker_key = mc.marker_key and mc.gxd_literature_count > 0) "
 					+ "inner join term emaps on (ers.structure_key = emaps.term_key) "
-					+ "inner join expression_result_sequence_num ersn on (ersn.result_key = ers.result_key) "
+					+ "inner join " + seqNumTable + " ersn on (ersn.result_key = ers.result_key) "
 					+ "left outer join assay_specimen sp on (ers.specimen_key = sp.specimen_key) "
 					+ "left outer join expression_result_cell_type ct on (ers.result_key = ct.result_key) "
 					+ "where ers.assay_type != 'Recombinase reporter'"
@@ -880,6 +1011,9 @@ public class GxdResultHasImageIndexer extends Indexer {
 				doc.addField(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
 				doc.addField(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.addField(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
+				if (ensemblGMID.containsKey(markerKey)) {
+					doc.addField(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
+				}
 
 				// also add symbol and current name to searchable nomenclature
 				doc.addField(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
@@ -906,7 +1040,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 				doc.addField(GxdResultFields.ANTIBODY_KEY, assayAntibodyKey.get(assay_key));
 
 				// assay sorts
-				doc.addField(GxdResultFields.A_BY_SYMBOL, rs.getString("r_by_assay_type"));
+				doc.addField(GxdResultFields.A_BY_SYMBOL, rs.getString("r_by_gene_symbol"));
 				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, rs.getString("r_by_assay_type"));
 
 				// result summary
@@ -1060,7 +1194,6 @@ public class GxdResultHasImageIndexer extends Indexer {
 				doc.addField(GxdResultFields.R_BY_AGE, rs.getString("r_by_age"));
 				doc.addField(GxdResultFields.R_BY_STRUCTURE, rs.getString("r_by_structure"));
 				doc.addField(GxdResultFields.R_BY_EXPRESSED, rs.getString("r_by_expressed"));
-				doc.addField(GxdResultFields.R_BY_MUTANT_ALLELES, rs.getString("r_by_mutant_alleles"));
 				doc.addField(GxdResultFields.R_BY_REFERENCE, rs.getString("r_by_reference"));
 
 				// add matrix grouping fields
@@ -1085,6 +1218,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 
 			if(memoryPercent() > .80) { printMemory(); commit(); }
 			
+			dropTempTable(seqNumTable); 
 		} // for loop (stepping through chunks)
 		
 		writeDocs(docs);
@@ -1117,5 +1251,416 @@ public class GxdResultHasImageIndexer extends Indexer {
 		}
 		// not sure what to do here... age should never be null.
 		return -1.0;
+	}
+
+	// index RNA-Sequence expression data (not classical data)
+	public void	indexRnaSeqData(
+			Map<String, List<String>> markerNomenMap,
+			Map<String, String> centimorganMap,
+			Map<String, Map<String, Map<String, String>>> mutatedInMap,
+			Map<String, List<String>> mutatedInAlleleMap,
+			Map<String, List<String>> markerVocabMap,
+			Map<String, Set<String>> vocabAncestorMap, 
+			Map<String, List<String>> structureAncestorIdMap,
+			Map<String, List<String>> structureAncestorKeyMap,
+			Map<String, List<String>> structureSynonymMap) throws Exception {
+
+		// In order to successfully have Whole Genome (RNA-Seq) assays appear after the classical assays (with
+		// a single marker) on the Assays tab of the summary page, we need to look up the maximum sequence
+		// number for symbols.  (The sorting on the Assays tab is based on the sequence number of the first
+		// marker when using Solr's group by function.  We need to push the Whole Genome ones below those and
+		// should probably sort them by the Reference column.)
+		
+		ResultSet rs_max = ex.executeProto("select max(by_symbol) as max_symbol from uni_by_symbol");
+		rs_max.next();
+		int maxSymbol = rs_max.getInt("max_symbol");
+		rs_max.close();
+		
+		// find the maximum result key, so we have an upper bound when
+		// stepping through chunks of results
+
+		ResultSet rs_tmp = ex.executeProto("select max(consolidated_measurement_key) as max_cm_key from expression_ht_consolidated_sample_measurement");
+		rs_tmp.next();
+
+		Integer start = 0;
+		Integer end = rs_tmp.getInt("max_cm_key");
+		rs_tmp.close();
+		int chunkSize = 500000;
+
+		// While it appears that modValue could be one iteration too low (due
+		// to rounding down), this is accounted for by using <= in the loop.
+
+		int modValue = end.intValue() / chunkSize;
+
+		// pre-cache all the needed genotypes, markers, assays, terms
+		cacheGenotypes(0, end.intValue(), true);
+		cacheMarkers(0, end.intValue(), true);
+		cacheAssays(0, end.intValue(), true);
+		cacheTerms(0, end.intValue(), true);
+
+		// Perform the chunking
+
+		logger.info("Getting all RNA-Seq results and related search criteria");
+		logger.info("Max consolidated_measurement_key: " + end + ", chunks: " + (modValue + 1));
+
+		// can set the size to our known max (slight efficiency gain)
+		Collection<SolrInputDocument> docs = new ArrayList<SolrInputDocument>(1001);
+
+		// get a formatter for average QN TPM level
+		NumberFormat fmt = NumberFormat.getInstance();
+		fmt.setGroupingUsed(false);
+		fmt.setMaximumFractionDigits(2);
+		fmt.setMinimumFractionDigits(2);
+		fmt.setMinimumIntegerDigits(1);
+		fmt.setMaximumIntegerDigits(10);
+
+		for (int i = 0; i <= modValue; i++) {
+
+			start = i * chunkSize;
+			end = start + chunkSize;
+
+			String seqNumTable = buildOrderingTable(start, end, false);
+
+			// mapping from result key to List of high-level EMAPA structures for each result
+			Map<String, Set<String>> systemMap = getAnatomicalSystemMap(start, end, true);
+
+			// Note: There are no figure labels for RNA-Seq data.
+
+			logger.info("Processing measurement key > " + start + " and <= " + end + ", RAM used: " + memoryUsed());
+
+			String query = "select sm.consolidated_measurement_key, "
+				+ "  sm.marker_key, cs.experiment_key, "
+				+ "  emaps.term_key as structure_key, cs.theiler_stage, "
+				+ "  cs.age as age_abbreviation, sm.average_qn_tpm, "
+				+ "  sm.level as tpm_level, cs.age_min, cs.age_max, "
+				+ "  null as pattern, et.primary_id as emaps_id, "
+				+ "  cs.genotype_key, "
+				+ "  exp.primary_id as ref_id, exp.name as ref_title, "
+				+ "  sn.by_assaytype as r_by_assay_type, "
+				+ "  sn.by_symbol as r_by_gene_symbol, "
+				+ "  sn.by_age as r_by_age, "
+				+ "  sn.by_detected as r_by_expressed, "
+				+ "  sn.by_structure as r_by_structure, "
+				+ "  sn.by_reference as r_by_reference, "
+				+ "  sm.biological_replicate_count, "
+				+ "  cs.sex, cs.note, g.is_conditional, sm.consolidated_sample_key "
+				+ "from expression_ht_consolidated_sample_measurement sm, "
+				+ "  " + seqNumTable + " sn, "
+				+ "  expression_ht_consolidated_sample cs, "
+				+ "  expression_ht_experiment exp, "
+				+ "  term_emap emaps, term et, genotype g "
+				+ "where sm.consolidated_measurement_key > " + start
+				+ "  and sm.consolidated_measurement_key <= " + end
+				+ "  and cs.genotype_key = g.genotype_key "
+				+ "  and sm.consolidated_measurement_key = sn.result_key "
+				+ "  and cs.experiment_key = exp.experiment_key "
+				+ "  and sm.consolidated_sample_key = cs.consolidated_sample_key "
+				+ "  and cs.theiler_stage::integer = emaps.stage "
+				+ "  and cs.emapa_key = emaps.emapa_term_key "
+				+ "  and emaps.term_key = et.term_key";
+			
+			ResultSet rs = ex.executeProto(query);
+			String assay_type = "RNA-Seq";
+			String isExpressed = "No";
+			String detectionLevel = "No";
+
+			while (rs.next()) {
+				String markerKey = rs.getString("marker_key");
+				String result_key = "rnaseq" + rs.getString("consolidated_measurement_key");
+				String assay_key = rs.getString("experiment_key");
+				String genotypeKey = rs.getString("genotype_key");
+				String combination = allelePairs.get(rs.getString("genotype_key"));
+
+				// result fields
+				String theilerStage = rs.getString("theiler_stage");
+				Double avgQnTpmDbl = rs.getDouble("average_qn_tpm");
+
+				String avgQnTpm = null;
+				try {
+					avgQnTpm = fmt.format(avgQnTpmDbl);
+				} catch (NumberFormatException e) {
+					avgQnTpm = avgQnTpmDbl.toString();
+				}
+
+				if ("Below Cutoff".equals(rs.getString("tpm_level"))) {
+					isExpressed = "No";
+					detectionLevel = "No";
+				} else {
+					isExpressed = "Yes";
+					detectionLevel = "Yes";
+				}
+				String structureTermKey = rs.getString("structure_key");
+
+				String chr = chromosome.get(markerKey);
+				String cm_offset = "";
+				if (centimorganMap.containsKey(markerKey)) {
+					cm_offset = centimorganMap.get(markerKey);
+				}
+				String start_coord = startCoord.get(markerKey);
+				String end_coord = endCoord.get(markerKey);
+				String spatialString = new String("");
+				if ((start_coord != null) && (end_coord != null)) {
+					spatialString = SolrLocationTranslator.getIndexValue(
+							chr,Long.parseLong(start_coord),Long.parseLong(end_coord),true);
+				}
+
+				String unique_key = assay_type + "-" + result_key;
+				if (unique_key == null || unique_key.equals("-")) {
+					continue;
+				}
+
+				SolrInputDocument doc = new SolrInputDocument();
+
+				// Add the single value fields
+				doc.addField(GxdResultFields.KEY, unique_key);
+				doc.addField(GxdResultFields.MARKER_KEY, markerKey);
+				doc.addField(IndexConstants.MRK_BY_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
+				doc.addField(GxdResultFields.M_BY_LOCATION, markerByLocation.get(markerKey));
+				doc.addField(GxdResultFields.ASSAY_KEY, assay_key);
+				doc.addField(GxdResultFields.RESULT_KEY, result_key);
+				doc.addField(GxdResultFields.RESULT_TYPE, assay_type);
+				doc.addField(GxdResultFields.ASSAY_TYPE, assay_type);
+				doc.addField(GxdResultFields.THEILER_STAGE, theilerStage);
+				doc.addField(GxdResultFields.EMAPS_ID, rs.getString("emaps_id"));
+				doc.addField(GxdResultFields.IS_EXPRESSED, isExpressed);
+				doc.addField(GxdResultFields.AGE_MIN, roundAge(rs.getString("age_min")));
+				doc.addField(GxdResultFields.AGE_MAX, roundAge(rs.getString("age_max")));
+				doc.addField(GxdResultFields.TPM_LEVEL, rs.getString("tpm_level"));
+				doc.addField(GxdResultFields.AVG_QN_TPM_LEVEL, avgQnTpm);
+				doc.addField(GxdResultFields.BIOLOGICAL_REPLICATES, rs.getString("biological_replicate_count"));
+				doc.addField(GxdResultFields.SEX, rs.getString("sex"));
+				String note = rs.getString("note");
+				Integer isConditional = rs.getInt("is_conditional");
+				if (isConditional.intValue() == 1) {
+					if (note == null) {
+						note = "Conditional mutant.";
+					} else {
+						note = "Conditional mutant. " + note;
+					}
+				}
+				doc.addField(GxdResultFields.NOTES, note);
+				doc.addField(GxdResultFields.CONSOLIDATED_SAMPLE_KEY, rs.getString("consolidated_sample_key"));
+
+				boolean isWildType = "-1".equals(genotypeKey)
+					|| (combination == null)
+					|| ("".equals(combination));
+
+				String wildType = "mutant";
+				if (isWildType) {
+					wildType = "wild type";
+				}
+
+				doc.addField(GxdResultFields.IS_WILD_TYPE, wildType);
+
+				// marker summary
+				doc.addField(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
+				doc.addField(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
+				doc.addField(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
+				if (ensemblGMID.containsKey(markerKey)) {
+					doc.addField(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
+				}
+
+				// also add symbol and current name to searchable nomenclature
+				doc.addField(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
+				doc.addField(GxdResultFields.NOMENCLATURE, markerName.get(markerKey));
+				doc.addField(GxdResultFields.MARKER_TYPE, markerSubtype.get(markerKey));
+
+				// add fields for filtering by marker-associated vocabularies
+				for (String mpTerm : markerMpCache.getTerms(markerKey)) {
+					doc.addField(GxdResultFields.MP_HEADERS, mpTerm);
+				}
+				
+				addGoTerms(doc, markerKey);
+
+				for (String doTerm : markerDoCache.getTerms(markerKey)) {
+					doc.addField(GxdResultFields.DO_HEADERS, doTerm);
+				}
+
+				for (String featureType : markerTypeCache.getTerms(markerKey)) {
+					doc.addField(GxdResultFields.FEATURE_TYPES, featureType);
+				}
+
+				// location stuff
+				doc.addField(GxdResultFields.CHROMOSOME, chr);
+				doc.addField(GxdResultFields.START_COORD, start_coord);
+				doc.addField(GxdResultFields.END_COORD, end_coord);
+				doc.addField(GxdResultFields.CYTOBAND, cytoband.get(markerKey));
+				doc.addField(GxdResultFields.STRAND, strand.get(markerKey));
+				if (!spatialString.equals("")) {
+					doc.addField(GxdResultFields.MOUSE_COORDINATE, spatialString);
+				}
+
+				if (cm_offset == null || cm_offset.equals("-1"))
+					cm_offset = "";
+				doc.addField(GxdResultFields.CENTIMORGAN, cm_offset);
+
+				// assay summary
+				doc.addField(GxdResultFields.ASSAY_HAS_IMAGE, "1".equals(assayHasImage.get(assay_key)));
+				doc.addField(GxdResultFields.PROBE_KEY, assayProbeKey.get(assay_key));
+				doc.addField(GxdResultFields.ANTIBODY_KEY, assayAntibodyKey.get(assay_key));
+
+				// assay sorts (For RNA-Seq, push these below the classical data and sort them by reference.)
+				int byReference = rs.getInt("r_by_reference");
+				doc.addField(GxdResultFields.A_BY_SYMBOL, maxSymbol + byReference);
+				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, maxSymbol + byReference);
+
+				// result summary
+				doc.addField(GxdResultFields.DETECTION_LEVEL, detectionLevel);
+				doc.addField(GxdResultFields.STRUCTURE_PRINTNAME, printname.get(structureTermKey));
+				doc.addField(GxdResultFields.AGE, rs.getString("age_abbreviation"));
+				doc.addField(GxdResultFields.ASSAY_MGIID, assayID.get(assay_key));
+				doc.addField(GxdResultFields.JNUM, rs.getString("ref_id"));
+				doc.addField(GxdResultFields.SHORT_CITATION, rs.getString("ref_title"));
+				doc.addField(GxdResultFields.GENOTYPE, combination);
+				doc.addField(GxdResultFields.STRAIN, bgStrains.get(genotypeKey));
+				doc.addField(GxdResultFields.PATTERN, rs.getString("pattern"));
+
+				// multi values
+
+				if (systemMap.containsKey(result_key)) {
+					for (String system : systemMap.get(result_key)) {
+						doc.addField(GxdResultFields.ANATOMICAL_SYSTEM, system);
+					}
+					systemMap.remove(result_key);
+				}
+
+				if (markerNomenMap.containsKey(markerKey)) {
+					for (String nomen : markerNomenMap.get(markerKey)) {
+						doc.addField(GxdResultFields.NOMENCLATURE, nomen);
+					}
+				}
+
+				String genotype_key = rs.getString("genotype_key");
+				if (mutatedInMap.containsKey(genotype_key)) {
+					Map<String, Map<String, String>> gMap = mutatedInMap.get(genotype_key);
+					for (String genotype_marker_key : gMap.keySet()) {
+						doc.addField(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("symbol"));
+						doc.addField(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("name"));
+
+						// get any synonyms
+						if (markerNomenMap.containsKey(genotype_marker_key)) {
+							for (String synonym : markerNomenMap.get(genotype_marker_key)) {
+								doc.addField(GxdResultFields.MUTATED_IN, synonym);
+							}
+						}
+					}
+				}
+
+				if (mutatedInAlleleMap.containsKey(genotype_key)) {
+					List<String> alleleIds = mutatedInAlleleMap.get(genotype_key);
+
+					for (String alleleId : alleleIds) {
+						doc.addField(GxdResultFields.ALLELE_ID, alleleId);
+					}
+
+				}
+
+				if (markerVocabMap.containsKey(markerKey)) {
+					Set<String> uniqueAnnotationIDs = new HashSet<String>();
+
+					for (String termId : markerVocabMap.get(markerKey)) {
+						uniqueAnnotationIDs.add(termId);
+						if (vocabAncestorMap.containsKey(termId)) {
+							for (String ancestorId : vocabAncestorMap.get(termId)) {
+								uniqueAnnotationIDs.add(ancestorId);
+							}
+						}
+					}
+
+					for (String annotationID : uniqueAnnotationIDs) {
+						doc.addField(GxdResultFields.ANNOTATION, annotationID);
+					}
+				}
+
+				String myEmapaID = emapaID.get(structureTermKey);
+
+				Set<String> ancestorIDs = new HashSet<String>();
+				ancestorIDs.add(structureID.get(structureTermKey));
+				Set<String> ancestorStructures = new HashSet<String>();
+				ancestorStructures.add(printname.get(structureTermKey));
+
+				if (structureAncestorIdMap.containsKey(structureTermKey)) {
+					// get ancestors
+					List<String> structure_ancestor_ids = structureAncestorIdMap.get(structureTermKey);
+
+					for (String structure_ancestor_id : structure_ancestor_ids) {
+						// get synonyms for each ancestor/term
+
+						if (structureSynonymMap.containsKey(structure_ancestor_id)) {
+
+							// also add structure MGI ID
+							ancestorIDs.add(structure_ancestor_id);
+							for (String structureSynonym : structureSynonymMap.get(structure_ancestor_id)) {
+								ancestorStructures.add(structureSynonym);
+							}
+						}
+					}
+
+					// only add unique structures (for best solr indexing
+					// performance)
+					for (String ancestorId : ancestorIDs) {
+						doc.addField(GxdResultFields.STRUCTURE_ID, ancestorId);
+					}
+					for (String ancestorStructure : ancestorStructures) {
+						doc.addField(GxdResultFields.STRUCTURE_ANCESTORS, ancestorStructure);
+					}
+				}
+				
+				// add the id for this exact structure
+				doc.addField(GxdResultFields.STRUCTURE_EXACT, myEmapaID);
+
+				Set<String> structureKeys = new HashSet<String>();
+				structureKeys.add(structureTermKey);
+				doc.addField(GxdResultFields.ANNOTATED_STRUCTURE_KEY, structureTermKey);
+
+				if (structureAncestorKeyMap.containsKey(structureTermKey)) {
+					// get ancestors by key as well (for links from AD browser)
+					for (String structureAncestorKey : structureAncestorKeyMap.get(structureTermKey)) {
+						structureKeys.add(structureAncestorKey);
+					}
+				}
+
+				for (String structKey : structureKeys) {
+					doc.addField(GxdResultFields.STRUCTURE_KEY, structKey);
+				}
+
+				// result sorts
+				doc.addField(GxdResultFields.R_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_assay_type")));
+				doc.addField(GxdResultFields.R_BY_MRK_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
+				doc.addField(GxdResultFields.R_BY_AGE, Integer.toString(rs.getInt("r_by_age")));
+				doc.addField(GxdResultFields.R_BY_STRUCTURE, Integer.toString(rs.getInt("r_by_structure")));
+				doc.addField(GxdResultFields.R_BY_EXPRESSED, Integer.toString(rs.getInt("r_by_expressed")));
+				doc.addField(GxdResultFields.R_BY_MUTANT_ALLELES, "0");
+				doc.addField(GxdResultFields.R_BY_REFERENCE, Integer.toString(rs.getInt("r_by_reference")));
+
+				// add matrix grouping fields
+				String stageMatrixGroup = joiner(myEmapaID, isExpressed, theilerStage);
+				doc.addField(GxdResultFields.STAGE_MATRIX_GROUP, stageMatrixGroup);
+
+				String geneMatrixGroup = joiner(myEmapaID, isExpressed, markerKey, theilerStage);
+				doc.addField(GxdResultFields.GENE_MATRIX_GROUP, geneMatrixGroup);
+
+				docs.add(doc);
+				if (docs.size() >= solrCacheSize) {
+					writeDocs(docs);
+					docs = new ArrayList<SolrInputDocument>(solrCacheSize);		// max known size
+				}
+			} // while loop (stepping through rows for this chunk)
+
+			rs.close();
+			String ramUsed = memoryUsed();
+			systemMap = null;
+			logger.info("Finished chunk; RAM used: " + ramUsed + " -> " + memoryUsed());
+
+			if(memoryPercent() > .80) { printMemory(); commit(); }
+			else {
+				commit();
+			}
+			
+			dropTempTable(seqNumTable); 
+		} // for loop (stepping through chunks)
+		
+		writeDocs(docs);
+		commit();
 	}
 }

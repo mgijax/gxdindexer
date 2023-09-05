@@ -1,4 +1,4 @@
-package org.jax.mgi.gxdindexer.indexer;
+package org.jax.mgi.gxdindexer;
 
 import java.sql.ResultSet;
 import java.util.ArrayList;
