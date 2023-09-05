@@ -1,4 +1,4 @@
-package org.jax.mgi.gxdindexer.indexer;
+package org.jax.mgi.gxdindexer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,12 +70,15 @@ public abstract class Indexer implements Runnable {
 
 		String solrBaseUrl = props.getProperty("index.url");
 		
-		client = new ConcurrentUpdateSolrClient(solrBaseUrl + "/" + solrIndexName, 160, 4);
-		
+		logger.info("Setting up index: " + solrBaseUrl);
+		try {
+			client = new ConcurrentUpdateSolrClient.Builder(solrBaseUrl + "/" + solrIndexName).withQueueSize(160).withThreadCount(4).build();
+		} catch (Throwable e) {
+			logger.info("Failed to set up solr client:");
+			e.printStackTrace();
+			throw e;
+		}
 		logger.info("Working with index: " + solrBaseUrl + "/" + solrIndexName);
-
-		client.setConnectionTimeout(3 * 60000);
-		client.setSoTimeout(3 * 60000);
 
 		try {
 			logger.info("Deleting current index: " + solrIndexName);

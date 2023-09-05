@@ -9,21 +9,19 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.Properties;
 
+import org.jax.mgi.gxdindexer.Indexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.jax.mgi.gxdindexer.indexer.Indexer;
-
-
-
-
 /**
- * The SQLExecutor class knows how to create connections to MGD.
- * It can also clean up the connections after they are done,
- * and execute queries against a given database.
+ * The SQLExecutor class knows how to create connections to MGD. It can also
+ * clean up the connections after they are done, and execute queries against a
+ * given database.
  * 
  * The class is also smart enough to only open connections when they are needed.
- * If we go to run a new query and a connection hasn't been created yet, we create one.
+ * If we go to run a new query and a connection hasn't been created yet, we
+ * create one.
+ * 
  * @author mhall
  * 
  * @does Executes SQL Queries against either the MGD Database.
@@ -42,14 +40,14 @@ public class SQLExecutor {
 	private Date start;
 	private Date end;
 
-
 	/**
-	 * The default constructor pulls in connection information from the property files.
+	 * The default constructor pulls in connection information from the property
+	 * files.
 	 * 
 	 * @param config
 	 */
 
-	public SQLExecutor () {
+	public SQLExecutor() {
 		try {
 
 			InputStream in = Indexer.class.getClassLoader().getResourceAsStream("config.props");
@@ -63,12 +61,14 @@ public class SQLExecutor {
 			user = props.getProperty("mgd.user");
 			password = props.getProperty("mgd.password");
 			mgdJDBCUrl = props.getProperty("mgd.JDBC.url");
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
-		catch (Exception e) {e.printStackTrace();}
 	}
 
 	/**
 	 * Sets up the connection to the MGD Database.
+	 * 
 	 * @throws SQLException
 	 */
 
@@ -79,6 +79,7 @@ public class SQLExecutor {
 
 	/**
 	 * Clean up the connections to the database, if they have been initialized.
+	 * 
 	 * @throws SQLException
 	 */
 
@@ -89,11 +90,12 @@ public class SQLExecutor {
 	}
 
 	/**
-	 * Execute a statement against MGD (where that statement has no rows
-	 * returned), setting up the connection if needed.
+	 * Execute a statement against MGD (where that statement has no rows returned),
+	 * setting up the connection if needed.
+	 * 
 	 * @param query
 	 */
-	public void executeUpdate (String cmd) {
+	public void executeUpdate(String cmd) {
 
 		try {
 			if (conMGD == null) {
@@ -102,10 +104,10 @@ public class SQLExecutor {
 
 			java.sql.Statement stmt = conMGD.createStatement();
 			start = new Date();
-                        logger.info(cmd);
+			logger.info(cmd);
 			stmt.executeUpdate(cmd);
 			end = new Date();
-                        logger.info("Query took: " + getTimestamp());
+			logger.info("Query took: " + getTimestamp());
 			return;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -113,18 +115,20 @@ public class SQLExecutor {
 			return;
 		}
 	}
+
 	/*
 	 * execute any SQL that does not return a result
 	 */
 	public void executeVoid(String sql) {
 		try {
-			if (conMGD == null)  getMGDConnection();
+			if (conMGD == null)
+				getMGDConnection();
 			java.sql.Statement stmt = conMGD.createStatement();
 			start = new Date();
-                        logger.info(sql);
+			logger.info(sql);
 			stmt.execute(sql);
 			end = new Date();
-                        logger.info("Query took: " + getTimestamp());
+			logger.info("Query took: " + getTimestamp());
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.exit(1);
@@ -133,20 +137,22 @@ public class SQLExecutor {
 
 	/**
 	 * Execute a query against MGD, setting up the connection if needed.
+	 * 
 	 * @param query
 	 * @return
 	 */
-	public ResultSet executeProto (String query) {
+	public ResultSet executeProto(String query) {
 		return executeProto(query, 10000);
 	}
 
 	/**
-	 * Execute a query against MGD, setting up the connection if needed.  Use a cursor
-	 * to return 'cursorLimit' results at a time.
+	 * Execute a query against MGD, setting up the connection if needed. Use a
+	 * cursor to return 'cursorLimit' results at a time.
+	 * 
 	 * @param query
 	 * @return
 	 */
-	public ResultSet executeProto (String query, int cursorLimit) {
+	public ResultSet executeProto(String query, int cursorLimit) {
 
 		ResultSet set;
 
@@ -159,11 +165,11 @@ public class SQLExecutor {
 			if (cursorLimit > 0) {
 				stmt.setFetchSize(cursorLimit);
 			}
-                        logger.info(query);
+			logger.info(query);
 			start = new Date();
 			set = stmt.executeQuery(query);
 			end = new Date();
-                        logger.info("Query took: " + getTimestamp());
+			logger.info("Query took: " + getTimestamp());
 			return set;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -174,6 +180,7 @@ public class SQLExecutor {
 
 	/**
 	 * Return the timing of the last query.
+	 * 
 	 * @return
 	 */
 
@@ -181,8 +188,9 @@ public class SQLExecutor {
 		return end.getTime() - start.getTime();
 	}
 
-	/* returns a formatted timestamp as a string, showing the last query's
-	 * execution time in ms.  format:  "(n ms)"
+	/*
+	 * returns a formatted timestamp as a string, showing the last query's execution
+	 * time in ms. format: "(n ms)"
 	 */
 	public String getTimestamp() {
 		return getTiming() + " ms";
@@ -190,7 +198,7 @@ public class SQLExecutor {
 
 	@Override
 	public String toString() {
-		return "SQLExecutor[user="+user+",password="+password+",url="+mgdJDBCUrl+"]";
+		return "SQLExecutor[user=" + user + ",password=" + password + ",url=" + mgdJDBCUrl + "]";
 	}
 
 }
