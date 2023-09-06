@@ -1,13 +1,12 @@
 package org.jax.mgi.gxdindexer.shr;
 
-import java.util.Map;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.HashSet;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.log4j.Logger;
 
 // provides methods for fetching certain types of standard data, as a
@@ -20,7 +19,7 @@ public class Fetcher {
 	private Map<String,List<String>> markerSynonyms;
 	
 	// hide the default constructor
-	private Fetcher() {}
+	//private Fetcher() {}
 
 	// must provide a SQLExecutor for database access
 	public Fetcher(SQLExecutor sql) {

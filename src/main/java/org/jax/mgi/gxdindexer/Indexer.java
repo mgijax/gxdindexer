@@ -307,7 +307,7 @@ public abstract class Indexer implements Runnable {
 			String uniqueField = rs.getString(uniqueFieldName);
 			String secondField = rs.getString(secondFieldName);
 			if(!returnLookup.containsKey(uniqueField)) {
-				returnLookup.put(uniqueField, setClass.newInstance());
+				returnLookup.put(uniqueField, setClass.getDeclaredConstructor().newInstance());
 			}
 			returnLookup.get(uniqueField).add(secondField);
 			rows++;
