@@ -7,16 +7,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.solr.common.SolrInputDocument;
-import org.jax.mgi.gxdindexer.shr.MarkerMPCache;
-import org.jax.mgi.gxdindexer.shr.MarkerTypeCache;
 import org.jax.mgi.gxdindexer.shr.MarkerDOCache;
 import org.jax.mgi.gxdindexer.shr.MarkerGOCache;
+import org.jax.mgi.gxdindexer.shr.MarkerMPCache;
+import org.jax.mgi.gxdindexer.shr.MarkerTypeCache;
 import org.jax.mgi.shr.fe.IndexConstants;
 import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
 import org.jax.mgi.shr.fe.query.SolrLocationTranslator;
