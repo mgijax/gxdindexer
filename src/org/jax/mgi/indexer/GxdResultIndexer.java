@@ -512,7 +512,6 @@ public class GxdResultIndexer extends Indexer {
                                 + "from allele a, "
 				+ "  allele_to_genotype ag "
 				+ "where ag.allele_key = a.allele_key "
-                                + "  and a.is_recombinase = 0 "
                                 + "  and a.is_wild_type = 0 "
 				+ "  and (exists (select 1 from expression_result_summary ers "
 				+ "    where ag.genotype_key = ers.genotype_key)"
