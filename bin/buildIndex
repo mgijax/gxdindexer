@@ -44,11 +44,11 @@ fi
 
 # prepare the memory settings for the JVM
 
-MEMORY_ARGS="-d64 -Xms${MIN_MEM}g -Xmx${MAX_MEM}g -XX:-UseParallelGC"
+MEMORY_ARGS=" -Xms${MIN_MEM}g -Xmx${MAX_MEM}g -XX:-UseParallelGC"
 
 # set up the classpath for the JVM
 
-CLASSPATH=$INSTALL_DIR/dist/gxdindexer.jar:$LIB_DIR/*
+CLASSPATH=$INSTALL_DIR/target/gxdindexer-jar-with-dependencies.jar:$LIB_DIR/*
 export CLASSPATH
 
 # map the index name to its Java class
@@ -57,5 +57,5 @@ INDEX_CLASS="$1"
 
 # run the indexer
 
-${JAVA_HOME}/bin/java -classpath $CLASSPATH $MEMORY_ARGS org.jax.mgi.gxdindexer.indexer.Main $INDEX_CLASS 
+${JAVA_HOME}/bin/java -classpath $CLASSPATH $MEMORY_ARGS org.jax.mgi.gxdindexer.Main $INDEX_CLASS 
 exit $?
