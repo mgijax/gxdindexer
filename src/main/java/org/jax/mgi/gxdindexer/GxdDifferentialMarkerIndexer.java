@@ -400,7 +400,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 
 		Integer startMarkerKey = 0;
 		Integer endMarkerKey = 0;
-
+                
 		while (startIndex < numMarkers) {
 			// get a slice of markers to work on
 			startMarkerKey = markerKeys.get(startIndex);
@@ -414,7 +414,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 
 			Map<Integer,String> markerIDs = getMarkerIDs(startMarkerKey, endMarkerKey); 
 			Map<Integer,List<Result>> markerResults = getMarkerResults(startMarkerKey, endMarkerKey);
-			logger.info(" - gathered results");
+			logger.info(" - gathered results. markerKeys:" + + markerIDs.size() + " results:" + markerResults.size());
 
 			// can walk through markerResults here to find for each marker:
 			// 1. structures where expression happens exclusively (nowhere outside that structure and its descendants)
@@ -431,6 +431,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 				docs.add(buildSolrDoc(markerKey, markerIDs.get(markerKey), markerResults.get(markerKey), structureInfoMap, structureAncestorIdMap, exclusiveStructures, allStructures, exclusiveStages));
 
 				if (docs.size() > cacheSize) {
+                                        logger.info(" - writing " + docs.size() + " docs.");
 					writeDocs(docs);
 					docs = new ArrayList<SolrInputDocument>();
 				}
@@ -442,6 +443,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 		} // end while (walking through chunks of markers)
 
 		if (docs.size() > 0) {
+                        logger.info(" - writing " + docs.size() + " docs.");
 			writeDocs(docs);
 		}
 		commit();
