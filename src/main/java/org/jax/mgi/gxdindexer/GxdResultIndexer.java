@@ -807,7 +807,7 @@ public class GxdResultIndexer extends Indexer {
 		indexRnaSeqData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
 			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
 			structureSynonymMap);
-		this.setSkipOptimizer(true);
+		//this.setSkipOptimizer(true);
 	}
 		
 	// populate the GO fields in the SolrInputDocument for the given markerKey
