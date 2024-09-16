@@ -190,7 +190,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 	}
 
 	
-	// get an ordered list of markers that have classical data (not considering RNA-Seq data)
+	// get an ordered list of markers that have expression data (classical or RNA-seq)
 	public List<Integer> getMarkerKeys() throws Exception {
 		logger.info("Getting marker keys");
 		List<Integer> markerKeys = new ArrayList<Integer>();
@@ -199,6 +199,12 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 			+ "where m.organism = 'mouse' "
 			+ "and m.status = 'official' "
 			+ "and exists (select 1 from expression_result_summary s "
+			+ "  where m.marker_key = s.marker_key) "
+			+ " UNION "
+			+ "select m.marker_key from marker m "
+			+ "where m.organism = 'mouse' "
+			+ "and m.status = 'official' "
+			+ "and exists (select 1 from expression_ht_consolidated_sample_measurement s "
 			+ "  where m.marker_key = s.marker_key) "
 			+ "order by 1";
 
@@ -263,6 +269,53 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 		return structureInfoMap;
 	}
 
+	// add results for the RNA-seq data for markers between the two given keys
+	public void addRnaSeqResults(Integer startMarkerKey, Integer endMarkerKey, Map<Integer,List<Result>> markerResults) throws Exception {
+		logger.info("Getting RNA-seq results (markers " + startMarkerKey + " to " + endMarkerKey + ")");
+
+		String query = ""
+			+ "select  "
+                        + "  ht.marker_key, "
+                        + "  case  "
+                        + "    when ht.level = 'Below Cutoff' then 0 "
+                        + "    else 1 "
+                        + "  end as is_expressed, "
+                        + "  te.term_key as structure_key, "
+                        + "  t1.term as structure_printname, "
+                        + "  t2.primary_id as emaps_id, "
+                        + "  cs.theiler_stage "
+                        + "from  "
+                        + "  expression_ht_consolidated_sample_measurement ht, "
+                        + "  expression_ht_consolidated_sample cs, "
+                        + "  term_emap te, "
+                        + "  term t1, "
+                        + "  term t2 "
+			+ "where ht.marker_key >= " + startMarkerKey
+			+ "  and ht.marker_key < " + endMarkerKey
+                        + "  and ht.consolidated_sample_key = cs.consolidated_sample_key "
+                        + "  and cs.emapa_key = te.emapa_term_key "
+                        + "  and cs.theiler_stage::int8 = te.stage "
+                        + "  and cs.emapa_key = t1.term_key "
+                        + "  and te.term_key = t2.term_key "
+			;
+
+		ResultSet rs = ex.executeProto(query);
+
+		logger.info(" - organizing them");
+		while (rs.next()) {           
+			int marker_key = rs.getInt("marker_key");
+			boolean is_expressed = rs.getInt("is_expressed") == 1;
+			String structure_key = rs.getString("structure_key");
+			String emapsId = rs.getString("emaps_id");
+			String stage = rs.getString("theiler_stage");
+			if(!markerResults.containsKey(marker_key)) {
+				markerResults.put(marker_key,new ArrayList<Result>());
+			}
+			markerResults.get(marker_key).add(new Result(structure_key,emapsId,stage,is_expressed));
+		}
+		rs.close();
+		logger.info(" - returning data for " + markerResults.size() + " markers");
+	}
 	// add results for the classical data for markers between the two given keys
 	public void addClassicalResults(Integer startMarkerKey, Integer endMarkerKey, Map<Integer,List<Result>> markerResults) throws Exception {
 		logger.info("Getting classical results (markers " + startMarkerKey + " to " + endMarkerKey + ")");
@@ -280,7 +333,6 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 			+ " and ers.assay_type != 'In situ reporter (transgenic)' "
 			+ " and (ers.is_wild_type = 1 or ers.genotype_key=-1)";
 
-		// "order by is_expressed desc ";
 		ResultSet rs = ex.executeProto(query);
 
 		logger.info(" - organizing them");
@@ -303,6 +355,7 @@ public class GxdDifferentialMarkerIndexer extends Indexer
 	public Map<Integer,List<Result>> getMarkerResults(Integer startKey, Integer endKey) throws Exception {
 		Map<Integer,List<Result>> markerResults = new HashMap<Integer,List<Result>>();
 		addClassicalResults(startKey, endKey, markerResults);
+		addRnaSeqResults(startKey, endKey, markerResults);
 		return markerResults;
 	}
 	
