@@ -27,6 +27,7 @@ public class Main {
 		 * */
 		indexerMap.put("gxdImagePane", new GxdImagePaneIndexer());
 		indexerMap.put("gxdDifferentialMarker", new GxdDifferentialMarkerIndexer());
+		indexerMap.put("gxdProfileMarker", new GxdProfileMarkerIndexer());
 		indexerMap.put("gxdResult", new GxdResultIndexer());
 		indexerMap.put("gxdResultHasImage", new GxdResultHasImageIndexer());
 		indexerMap.put("gxdDagEdge", new GxdDagEdgeIndexer());
@@ -63,6 +64,7 @@ public class Main {
 				} else if("gxd".equalsIgnoreCase(arg)) {
 					SPECIFIED_INDEXERS.add("gxdImagePane");
 					SPECIFIED_INDEXERS.add("gxdDifferentialMarker");
+					SPECIFIED_INDEXERS.add("gxdProfileMarker");
 					SPECIFIED_INDEXERS.add("gxdResult");
 					SPECIFIED_INDEXERS.add("gxdResultHasImage");
 					SPECIFIED_INDEXERS.add("gxdDagEdge");
