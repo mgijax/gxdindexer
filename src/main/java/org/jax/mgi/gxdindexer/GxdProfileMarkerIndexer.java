@@ -123,7 +123,7 @@ public class GxdProfileMarkerIndexer extends Indexer
 	}
 	
 
-	// get an ordered list of markers that have classical data (not considering RNA-Seq data)
+	// get an ordered list of markers that have expression data
 	public List<Integer> getMarkerKeys() throws Exception {
 		logger.info("Getting marker keys");
 		List<Integer> markerKeys = new ArrayList<Integer>();
@@ -204,6 +204,7 @@ public class GxdProfileMarkerIndexer extends Indexer
                         + "from  "
                         + "  expression_ht_consolidated_sample_measurement ht, "
                         + "  expression_ht_consolidated_sample cs, "
+			+ "  genotype g, "
                         + "  term_emap te, "
                         + "  term t1, "
                         + "  term t2 "
@@ -214,6 +215,8 @@ public class GxdProfileMarkerIndexer extends Indexer
                         + "  and cs.theiler_stage::int8 = te.stage "
                         + "  and cs.emapa_key = t1.term_key "
                         + "  and te.term_key = t2.term_key "
+			+ "  and cs.genotype_key = g.genotype_key "
+			+ "  and g.combination_1 is null "
 			;
 		ResultSet rs = ex.executeProto(query);
 		logger.info(" - organizing them");
