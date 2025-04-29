@@ -925,7 +925,7 @@ public class GxdResultIndexer extends Indexer {
 			String query = "select ers.result_key, "
 					+ "  ers.marker_key, ers.assay_key, ers.assay_type, "
 					+ "  ers.structure_key, ers.theiler_stage, ers.is_expressed, ers.has_image, " 
-					+ "  ers.age_abbreviation,  ers.jnum_id, ers.detection_level, ct.cell_type, "
+					+ "  ers.age_abbreviation,  ers.jnum_id, ers.detection_level, ct.cell_type, ct.cell_type_id, "
 					+ "  ers.age_min, ers.age_max, ers.pattern, emaps.primary_id as emaps_id, "
 					+ "  ers.is_wild_type, ers.genotype_key, ers.reference_key, " 
 					+ "  sp.sex, ersn.by_assaytype r_by_assay_type, "
@@ -1124,6 +1124,15 @@ public class GxdResultIndexer extends Indexer {
 						doc.addField(GxdResultFields.ANNOTATION, annotationID);
 					}
 				}
+
+				String cellTypeID = rs.getString("cell_type_id");
+				if (vocabAncestorMap.containsKey(cellTypeID)) {
+					// add this DAG node, and all it's parents (up to 'cell')
+					doc.addField(GxdResultFields.ANNOTATION, cellTypeID);
+					for (String ancestorId : vocabAncestorMap.get(cellTypeID)) {
+						doc.addField(GxdResultFields.ANNOTATION, ancestorId);
+					}
+				} 
 
 				if (imageMap.containsKey(result_key)) {
 					if (has_image.equals("1")) {

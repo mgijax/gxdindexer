@@ -12,3 +12,5 @@ config.props
 .settings
 .project
 .classpath
+dependency-reduced-pom.xml
+
