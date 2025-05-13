@@ -14,6 +14,7 @@ import java.util.Set;
 
 import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.gxdindexer.shr.MarkerDOCache;
+import org.jax.mgi.gxdindexer.shr.ResultCOCache;
 import org.jax.mgi.gxdindexer.shr.MarkerGOCache;
 import org.jax.mgi.gxdindexer.shr.MarkerMPCache;
 import org.jax.mgi.gxdindexer.shr.MarkerTypeCache;
@@ -67,6 +68,7 @@ public class GxdResultIndexer extends Indexer {
 	public MarkerMPCache markerMpCache = null;
 	public MarkerGOCache markerGoCache = null;
 	public MarkerDOCache markerDoCache = null;
+	public ResultCOCache resultCoCache = null;
 	public MarkerTypeCache markerTypeCache = null;
 	
 	// caches of reference data (key is reference key)
@@ -761,12 +763,17 @@ public class GxdResultIndexer extends Indexer {
 		}
 
 		try {
+			resultCoCache = new ResultCOCache();
+		} catch (Exception e) {
+			logger.error("Result/Cell ontology Cache failed; no CO filtering terms will be indexed.");
+		}
+
+		try {
 			markerTypeCache = new MarkerTypeCache();
 		} catch (Exception e) {
 			logger.error("Marker/Type Cache failed; no Feature Type filtering terms will be indexed.");
 		}
-
-		// mapping from marker key to List of synonyms for each marker
+				// mapping from marker key to List of synonyms for each marker
 		Map<String, List<String>> markerNomenMap = getMarkerNomenMap();
 
 		// mapping from marker key to its cM location, if available
@@ -1062,6 +1069,10 @@ public class GxdResultIndexer extends Indexer {
 
 				for (String doTerm : markerDoCache.getTerms(markerKey)) {
 					doc.addField(GxdResultFields.DO_HEADERS, doTerm);
+				}
+
+				for (String coTerm : resultCoCache.getTerms(result_key)) {
+					doc.addField(GxdResultFields.CO_HEADERS, coTerm);
 				}
 
 				for (String featureType : markerTypeCache.getTerms(markerKey)) {
