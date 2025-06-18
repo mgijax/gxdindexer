@@ -13,6 +13,7 @@ import java.util.Set;
 
 import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.gxdindexer.shr.MarkerDOCache;
+import org.jax.mgi.gxdindexer.shr.ResultCOCache;
 import org.jax.mgi.gxdindexer.shr.MarkerGOCache;
 import org.jax.mgi.gxdindexer.shr.MarkerMPCache;
 import org.jax.mgi.gxdindexer.shr.MarkerTypeCache;
@@ -61,6 +62,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 	public MarkerMPCache markerMpCache = null;
 	public MarkerGOCache markerGoCache = null;
 	public MarkerDOCache markerDoCache = null;
+	public ResultCOCache resultCoCache = null;	
 	public MarkerTypeCache markerTypeCache = null;
 	
 	// caches of reference data (key is reference key)
@@ -677,6 +679,12 @@ public class GxdResultHasImageIndexer extends Indexer {
 		}
 
 		try {
+			resultCoCache = new ResultCOCache();
+		} catch (Exception e) {
+			logger.error("Result/Cell ontology Cache failed; no CO filtering terms will be indexed.");
+		}		
+		
+		try {
 			markerTypeCache = new MarkerTypeCache();
 		} catch (Exception e) {
 			logger.error("Marker/Type Cache failed; no Feature Type filtering terms will be indexed.");
@@ -795,7 +803,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 					+ "  ers.structure_key, ers.theiler_stage, ers.is_expressed, ers.has_image, " 
 					+ "  ers.age_abbreviation,  ers.jnum_id, ers.detection_level, "
 					+ "  ers.age_min, ers.age_max, ers.pattern, emaps.primary_id as emaps_id, "
-					+ "  ers.is_wild_type, ers.genotype_key, ers.reference_key, ct.cell_type, " 
+					+ "  ers.is_wild_type, ers.genotype_key, ers.reference_key, ct.cell_type, ct.cell_type_id, " 
 					+ "  sp.sex, ersn.by_assay_type r_by_assay_type, "
 					+ "  ersn.by_gene_symbol r_by_gene_symbol, "
 					+ "  ersn.by_age r_by_age, "
@@ -930,6 +938,10 @@ public class GxdResultHasImageIndexer extends Indexer {
 					doc.addField(GxdResultFields.DO_HEADERS, doTerm);
 				}
 
+				for (String coTerm : resultCoCache.getTerms(result_key)) {
+					doc.addField(GxdResultFields.CO_HEADERS, coTerm);
+				}
+				
 				for (String featureType : markerTypeCache.getTerms(markerKey)) {
 					doc.addField(GxdResultFields.FEATURE_TYPES, featureType);
 				}
@@ -991,6 +1003,15 @@ public class GxdResultHasImageIndexer extends Indexer {
 					}
 				}
 
+				String cellTypeID = rs.getString("cell_type_id");
+				if (vocabAncestorMap.containsKey(cellTypeID)) {
+					// add this DAG node, and all it's parents (up to 'cell')				
+					doc.addField(GxdResultFields.ANNOTATION, cellTypeID);
+					for (String ancestorId : vocabAncestorMap.get(cellTypeID)) {
+						doc.addField(GxdResultFields.ANNOTATION, ancestorId);
+					}
+				} 				
+				
 				if (imageMap.containsKey(result_key)) {
 					if (has_image.equals("1")) {
 						for (String figure : imageMap.get(result_key)) {
