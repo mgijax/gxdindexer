@@ -922,6 +922,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 				doc.addField(GxdResultFields.AGE, rs.getString("age_abbreviation"));
 				doc.addField(GxdResultFields.ASSAY_MGIID, assayID.get(assay_key));
 				doc.addField(GxdResultFields.JNUM, rs.getString("jnum_id"));
+				doc.addField(GxdResultFields.JNUMS, rs.getString("jnum_id"));
 				doc.addField(GxdResultFields.PUBMED_ID, pubmedID.get(rs.getString("reference_key")));
 				doc.addField(GxdResultFields.SHORT_CITATION, citation.get(rs.getString("reference_key")));
 				doc.addField(GxdResultFields.GENOTYPE, allelePairs.get(rs.getString("genotype_key")));

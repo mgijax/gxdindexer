@@ -74,6 +74,8 @@ public class GxdResultIndexer extends Indexer {
 	// caches of reference data (key is reference key)
 	public Map<String, String> pubmedID = null;
 	public Map<String, String> citation = null;
+
+	public Map<String, List<String>> htExpRefs = null;
 	
 	// caches of assay data (key is assay key)
 	public Map<String, String> assayHasImage = null;
@@ -267,6 +269,27 @@ public class GxdResultIndexer extends Indexer {
 		}
 		rs.close();
 		logger.info("Cached data for " + pubmedID.size() + " references");
+	}
+
+	// cache J#s for HT experiments
+	public void cacheHtExpReferences () throws SQLException {
+		logger.info("Caching J#s for HT experiments.");
+		htExpRefs = new HashMap<String, List<String>>();
+		String query = "select e.experiment_key, r.jnum_id "
+			+ "from expression_ht_experiment_to_reference e, reference r "
+			+ "where e.reference_key = r.reference_key ";
+
+		ResultSet rs = ex.executeProto(query);
+		while (rs.next()) {
+			String ekey = rs.getString("experiment_key");
+			String jnum = rs.getString("jnum_id");
+			if (!htExpRefs.containsKey(ekey)) {
+				htExpRefs.put(ekey, new ArrayList<String>());
+			}
+			htExpRefs.get(ekey).add(jnum);
+		}
+		rs.close();
+		logger.info("Cached J#s for " + htExpRefs.size() + " HT experiments.");
 	}
 	
 	// join non-null strings s1, s2, and s3 together, separated by underscores
@@ -1055,6 +1078,7 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.AGE, rs.getString("age_abbreviation"));
 				doc.addField(GxdResultFields.ASSAY_MGIID, assayID.get(assay_key));
 				doc.addField(GxdResultFields.JNUM, rs.getString("jnum_id"));
+				doc.addField(GxdResultFields.JNUMS, rs.getString("jnum_id"));
 				doc.addField(GxdResultFields.PUBMED_ID, pubmedID.get(rs.getString("reference_key")));
 				doc.addField(GxdResultFields.SHORT_CITATION, citation.get(rs.getString("reference_key")));
 				doc.addField(GxdResultFields.GENOTYPE, allelePairs.get(rs.getString("genotype_key")));
@@ -1314,6 +1338,7 @@ public class GxdResultIndexer extends Indexer {
 		// pre-cache all the needed genotypes, markers, assays, terms
 		cacheGenotypes(0, end.intValue(), true);
 		cacheMarkers(0, end.intValue(), true);
+		cacheHtExpReferences();
 		cacheAssays(0, end.intValue(), true);
 		cacheTerms(0, end.intValue(), true);
 
@@ -1535,6 +1560,12 @@ public class GxdResultIndexer extends Indexer {
 				doc.addField(GxdResultFields.PATTERN, rs.getString("pattern"));
 
 				// multi values
+
+				if (htExpRefs.containsKey(assay_key)) {
+					for (String jnum : htExpRefs.get(assay_key)) {
+						doc.addField(GxdResultFields.JNUMS, jnum);
+					}
+				}
 
 				if (systemMap.containsKey(result_key)) {
 					for (String system : systemMap.get(result_key)) {
