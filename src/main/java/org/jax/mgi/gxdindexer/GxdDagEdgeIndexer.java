@@ -8,9 +8,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.shr.fe.IndexConstants;
 import org.jax.mgi.shr.fe.indexconstants.DagEdgeFields;
+
+import co.elastic.clients.elasticsearch._types.mapping.IntegerNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty;
+import co.elastic.clients.elasticsearch._types.mapping.LongNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.Property;
+import co.elastic.clients.elasticsearch._types.mapping.TextProperty;
 
 /**
  * GxdDagEdgeIndexer
@@ -24,7 +29,7 @@ import org.jax.mgi.shr.fe.indexconstants.DagEdgeFields;
 public class GxdDagEdgeIndexer extends Indexer 
 {   
 	public GxdDagEdgeIndexer () 
-	{ super("gxdDagEdge"); }
+	{ super("gxd_dag_edge"); }
 
 	public void index() throws Exception
 	{    
@@ -73,25 +78,25 @@ public class GxdDagEdgeIndexer extends Indexer
 				+ "AND tc.term_key>"+start+" AND tc.term_key<="+stop;
 
 		ResultSet rs = ex.executeProto(query);
-		List<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
+		List<Map<String, Object>> docs = new ArrayList<>();
 		while (rs.next()) 
 		{
-			SolrInputDocument doc = new SolrInputDocument();
+			Map<String, Object> doc = new HashMap<>();
 			String uniqueKey = rs.getString("vocab")+"_direct_"+rs.getString("unique_key");
 			Integer parentKey = rs.getInt("parent_term_key");
 			String parentKeyString = parentKey.toString();
 			Integer childKey = rs.getInt("child_term_key");
 			String childKeyString = childKey.toString();
 
-			doc.addField(IndexConstants.UNIQUE_KEY,uniqueKey);
-			doc.addField(DagEdgeFields.CHILD_TERM_KEY,childKey);
-			doc.addField(DagEdgeFields.CHILD_TERM,rs.getString("child_term"));
-			doc.addField(DagEdgeFields.CHILD_ID,rs.getString("child_id"));
-			doc.addField(DagEdgeFields.VOCAB,rs.getString("vocab"));
-			doc.addField(DagEdgeFields.PARENT_TERM_KEY,parentKey);
-			doc.addField(DagEdgeFields.PARENT_TERM,rs.getString("parent_term"));
-			doc.addField(DagEdgeFields.PARENT_ID,rs.getString("parent_id"));
-			doc.addField(DagEdgeFields.EDGE_TYPE,DagEdgeFields.DIRECT_EDGE_TYPE);
+			doc.put(IndexConstants.UNIQUE_KEY,uniqueKey);
+			doc.put(DagEdgeFields.CHILD_TERM_KEY,childKey);
+			doc.put(DagEdgeFields.CHILD_TERM,rs.getString("child_term"));
+			doc.put(DagEdgeFields.CHILD_ID,rs.getString("child_id"));
+			doc.put(DagEdgeFields.VOCAB,rs.getString("vocab"));
+			doc.put(DagEdgeFields.PARENT_TERM_KEY,parentKey);
+			doc.put(DagEdgeFields.PARENT_TERM,rs.getString("parent_term"));
+			doc.put(DagEdgeFields.PARENT_ID,rs.getString("parent_id"));
+			doc.put(DagEdgeFields.EDGE_TYPE,DagEdgeFields.DIRECT_EDGE_TYPE);
 
 			this.addAllFromLookup(doc,DagEdgeFields.RELATED_ANCESTOR,parentKeyString,edgeAncestorMap);
 			this.addAllFromLookup(doc,DagEdgeFields.RELATED_DESCENDENT,childKeyString,edgeDescendentMap);
@@ -99,14 +104,14 @@ public class GxdDagEdgeIndexer extends Indexer
 			if(emapaInfoMap.containsKey(parentKeyString))
 			{
 				EMAPAInfo ei = emapaInfoMap.get(parentKeyString);
-				doc.addField(DagEdgeFields.PARENT_START_STAGE,ei.startStage);
-				doc.addField(DagEdgeFields.PARENT_END_STAGE,ei.endStage);
+				doc.put(DagEdgeFields.PARENT_START_STAGE,ei.startStage);
+				doc.put(DagEdgeFields.PARENT_END_STAGE,ei.endStage);
 			}
 			if(emapaInfoMap.containsKey(childKeyString))
 			{
 				EMAPAInfo ei = emapaInfoMap.get(childKeyString);
-				doc.addField(DagEdgeFields.CHILD_START_STAGE,ei.startStage);
-				doc.addField(DagEdgeFields.CHILD_END_STAGE,ei.endStage);
+				doc.put(DagEdgeFields.CHILD_START_STAGE,ei.startStage);
+				doc.put(DagEdgeFields.CHILD_END_STAGE,ei.endStage);
 			}
 			
 			docs.add(doc);
@@ -133,30 +138,30 @@ public class GxdDagEdgeIndexer extends Indexer
 				+ "AND td.term_key>"+start+" AND td.term_key<="+stop;
 
 		ResultSet rs = ex.executeProto(query);
-		List<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
+		List<Map<String, Object>> docs = new ArrayList<>();
 		while (rs.next()) 
 		{
-			SolrInputDocument doc = new SolrInputDocument();
+			Map<String, Object> doc = new HashMap<>();
 			String uniqueKey = rs.getString("vocab")+"_descendent_"+rs.getString("unique_key");
 			Integer parentKey = rs.getInt("parent_term_key");
 			Integer childKey = rs.getInt("descendent_term_key");
 			String ancestorID = rs.getString("parent_id");
 			String descendantID = rs.getString("descendent_id");
 
-			doc.addField(IndexConstants.UNIQUE_KEY,uniqueKey);
-			doc.addField(DagEdgeFields.CHILD_TERM_KEY,childKey);
-			doc.addField(DagEdgeFields.CHILD_TERM,rs.getString("descendent_term"));
-			doc.addField(DagEdgeFields.CHILD_ID, descendantID);
-			doc.addField(DagEdgeFields.VOCAB,rs.getString("vocab"));
-			doc.addField(DagEdgeFields.PARENT_TERM_KEY,parentKey);
-			doc.addField(DagEdgeFields.PARENT_TERM,rs.getString("parent_term"));
-			doc.addField(DagEdgeFields.PARENT_ID, ancestorID);
-			doc.addField(DagEdgeFields.EDGE_TYPE,DagEdgeFields.DESCENDENT_EDGE_TYPE);
+			doc.put(IndexConstants.UNIQUE_KEY,uniqueKey);
+			doc.put(DagEdgeFields.CHILD_TERM_KEY,childKey);
+			doc.put(DagEdgeFields.CHILD_TERM,rs.getString("descendent_term"));
+			doc.put(DagEdgeFields.CHILD_ID, descendantID);
+			doc.put(DagEdgeFields.VOCAB,rs.getString("vocab"));
+			doc.put(DagEdgeFields.PARENT_TERM_KEY,parentKey);
+			doc.put(DagEdgeFields.PARENT_TERM,rs.getString("parent_term"));
+			doc.put(DagEdgeFields.PARENT_ID, ancestorID);
+			doc.put(DagEdgeFields.EDGE_TYPE,DagEdgeFields.DESCENDENT_EDGE_TYPE);
 			
 			// add any EMAPS IDs that can be used to find this edge (This is from a stage-aware traversal
 			// of the DAG, so should only follow valid paths for any given stage.)
 			if (emapsIDs.containsKey(ancestorID) && emapsIDs.get(ancestorID).containsKey(descendantID)) {
-				doc.addField(DagEdgeFields.EMAPS_ID, emapsIDs.get(ancestorID).get(descendantID));
+				doc.put(DagEdgeFields.EMAPS_ID, emapsIDs.get(ancestorID).get(descendantID));
 			}
 
 			docs.add(doc);
@@ -270,5 +275,82 @@ public class GxdDagEdgeIndexer extends Indexer
 			this.startStage=startStage;
 			this.endStage=endStage;
 		}
+	}
+
+	@Override
+	protected String getIndexMappingJson() {
+		String mappingJson = """
+		{
+		  "settings": {
+		    "number_of_shards": 4,
+		    "number_of_replicas": 0,
+		    "refresh_interval": "10s",
+		    "analysis": {
+		      "analyzer": {
+		        "textTight_analyzer": {
+		          "tokenizer": "whitespace",
+		          "filter": ["lowercase", "remove_duplicates"]
+		        },
+		        "vocab_index_analyzer": {
+		          "tokenizer": "whitespace",
+		          "filter": ["word_delimiter", "lowercase"]
+		        },
+		        "vocab_query_analyzer": {
+		          "tokenizer": "whitespace",
+		          "filter": ["lowercase", "word_delimiter"]
+		        },
+		        "custom_stop_analyzer": {
+		          "tokenizer": "standard",
+		          "filter": ["lowercase", "custom_stop"]
+		        }
+		      },
+		      "filter": {
+		        "remove_duplicates": {
+		          "type": "unique",
+		          "only_on_same_position": true
+		        },
+		        "word_delimiter": {
+		          "type": "word_delimiter",
+		          "generate_word_parts": true,
+		          "generate_number_parts": true,
+		          "catenate_words": false,
+		          "catenate_numbers": false,
+		          "split_on_numerics": false,
+		          "catenate_all": false,
+		          "split_on_case_change": false,
+		          "preserve_original": true,
+		          "stem_english_possessive": false
+		        },
+		        "custom_stop": {
+		          "type": "stop",
+		          "stopwords": ["and", "from", "of", "or", "the", "their", "to"]
+		        }
+		      }
+		    }
+		  },
+		  "mappings": {
+		    "properties": {
+		      "uniqueKey": { "type": "keyword" },
+		      "childId": { "type": "text", "analyzer": "textTight_analyzer" },
+		      "childTerm": { "type": "text", "analyzer": "vocab_index_analyzer", "search_analyzer": "vocab_query_analyzer" },
+		      "childTermKey": { "type": "integer" },
+		      "parentTermKey": { "type": "integer" },
+		      "parentTerm": { "type": "text", "analyzer": "vocab_index_analyzer", "search_analyzer": "vocab_query_analyzer" },
+		      "parentId": { "type": "text", "analyzer": "textTight_analyzer" },
+		      "edgeType": { "type": "keyword" },
+		      "vocab": { "type": "text", "analyzer": "custom_stop_analyzer" },
+		      "emapsId": { "type": "text", "analyzer": "textTight_analyzer" },
+		      "relatedAncestor": { "type": "text", "analyzer": "textTight_analyzer" },
+		      "relatedDescendent": { "type": "text", "analyzer": "textTight_analyzer" },
+		      "childStartStage": { "type": "integer" },
+		      "childEndStage": { "type": "integer" },
+		      "parentStartStage": { "type": "integer" },
+		      "parentEndStage": { "type": "integer" },
+		      "_version_": { "type": "long" }
+		    }
+		  }
+		}
+		""";
+		return mappingJson;
 	}
 }

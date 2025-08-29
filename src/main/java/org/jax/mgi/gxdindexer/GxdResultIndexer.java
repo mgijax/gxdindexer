@@ -5,22 +5,22 @@ import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.gxdindexer.shr.MarkerDOCache;
-import org.jax.mgi.gxdindexer.shr.ResultCOCache;
 import org.jax.mgi.gxdindexer.shr.MarkerGOCache;
 import org.jax.mgi.gxdindexer.shr.MarkerMPCache;
 import org.jax.mgi.gxdindexer.shr.MarkerTypeCache;
+import org.jax.mgi.gxdindexer.shr.ResultCOCache;
 import org.jax.mgi.shr.fe.IndexConstants;
 import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
 import org.jax.mgi.shr.fe.query.SolrLocationTranslator;
+
+import co.elastic.clients.elasticsearch._types.mapping.Property;
 
 /**
  * GxdResultIndexer
@@ -82,7 +82,7 @@ public class GxdResultIndexer extends Indexer {
 	public Map<String, String> assayID = null;
 	
 	public GxdResultIndexer() {
-		super("gxdResult");
+		super("gxd_result");
 	}
 
 	// cache data for assays for expression results > startKey and <= endKey
@@ -818,15 +818,15 @@ public class GxdResultIndexer extends Indexer {
 	}
 		
 	// populate the GO fields in the SolrInputDocument for the given markerKey
-	public void addGoTerms(SolrInputDocument doc, String markerKey) throws Exception {
+	public void addGoTerms(Map<String, Object> doc, String markerKey) throws Exception {
 		for (String goTerm : markerGoCache.getTermsBP(markerKey)) {
-			doc.addField(GxdResultFields.GO_HEADERS_BP, goTerm);
+			doc.put(GxdResultFields.GO_HEADERS_BP, goTerm);
 		}
 		for (String goTerm : markerGoCache.getTermsCC(markerKey)) {
-			doc.addField(GxdResultFields.GO_HEADERS_CC, goTerm);
+			doc.put(GxdResultFields.GO_HEADERS_CC, goTerm);
 		}
 		for (String goTerm : markerGoCache.getTermsMF(markerKey)) {
-			doc.addField(GxdResultFields.GO_HEADERS_MF, goTerm);
+			doc.put(GxdResultFields.GO_HEADERS_MF, goTerm);
 		}
 	}
 
@@ -907,7 +907,7 @@ public class GxdResultIndexer extends Indexer {
 		logger.info("Max result_key: " + end + ", chunks: " + (modValue + 1));
 
 		// can set the size to our known max (slight efficiency gain)
-		Collection<SolrInputDocument> docs = new ArrayList<SolrInputDocument>(1001);
+		List<Map<String, Object>> docs = new ArrayList<Map<String, Object>>(1001);
 		
 		for (int i = 0; i <= modValue; i++) {
 
@@ -984,25 +984,25 @@ public class GxdResultIndexer extends Indexer {
 					continue;
 				}
 
-				SolrInputDocument doc = new SolrInputDocument();
+				Map<String, Object> doc = new HashMap<>();
 
 				// Add the single value fields
-				doc.addField(GxdResultFields.KEY, unique_key);
-				doc.addField(GxdResultFields.MARKER_KEY, markerKey);
-				doc.addField(IndexConstants.MRK_BY_SYMBOL, rs.getString("r_by_gene_symbol"));
-				doc.addField(GxdResultFields.M_BY_LOCATION, markerByLocation.get(markerKey));
-				doc.addField(GxdResultFields.ASSAY_KEY, assay_key);
-				doc.addField(GxdResultFields.RESULT_KEY, result_key);
-				doc.addField(GxdResultFields.RESULT_TYPE, assay_type);
-				doc.addField(GxdResultFields.ASSAY_TYPE, assay_type);
-				doc.addField(GxdResultFields.THEILER_STAGE, theilerStage);
-				doc.addField(GxdResultFields.EMAPS_ID, rs.getString("emaps_id"));
-				doc.addField(GxdResultFields.IS_EXPRESSED, isExpressed);
-				doc.addField(GxdResultFields.AGE_MIN, roundAge(rs.getString("age_min")));
-				doc.addField(GxdResultFields.AGE_MAX, roundAge(rs.getString("age_max")));
-				doc.addField(GxdResultFields.SEX, rs.getString("sex"));
-				doc.addField(GxdResultFields.STRAIN, bgStrains.get(rs.getString("genotype_key")));
-				doc.addField(GxdResultFields.CELL_TYPE, rs.getString("cell_type"));
+				doc.put(GxdResultFields.KEY, unique_key);
+				doc.put(GxdResultFields.MARKER_KEY, markerKey);
+				doc.put(IndexConstants.MRK_BY_SYMBOL, rs.getString("r_by_gene_symbol"));
+				doc.put(GxdResultFields.M_BY_LOCATION, markerByLocation.get(markerKey));
+				doc.put(GxdResultFields.ASSAY_KEY, assay_key);
+				doc.put(GxdResultFields.RESULT_KEY, result_key);
+				doc.put(GxdResultFields.RESULT_TYPE, assay_type);
+				doc.put(GxdResultFields.ASSAY_TYPE, assay_type);
+				doc.put(GxdResultFields.THEILER_STAGE, theilerStage);
+				doc.put(GxdResultFields.EMAPS_ID, rs.getString("emaps_id"));
+				doc.put(GxdResultFields.IS_EXPRESSED, isExpressed);
+				doc.put(GxdResultFields.AGE_MIN, roundAge(rs.getString("age_min")));
+				doc.put(GxdResultFields.AGE_MAX, roundAge(rs.getString("age_max")));
+				doc.put(GxdResultFields.SEX, rs.getString("sex"));
+				doc.put(GxdResultFields.STRAIN, bgStrains.get(rs.getString("genotype_key")));
+				doc.put(GxdResultFields.CELL_TYPE, rs.getString("cell_type"));
 
 				boolean isWildType = rs.getString("is_wild_type").equals("1") || rs.getString("genotype_key").equals("-1");
 
@@ -1011,86 +1011,86 @@ public class GxdResultIndexer extends Indexer {
 					wildType = "wild type";
 				}
 
-				doc.addField(GxdResultFields.IS_WILD_TYPE, wildType);
+				doc.put(GxdResultFields.IS_WILD_TYPE, wildType);
 
 				// marker summary
-				doc.addField(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
-				doc.addField(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
-				doc.addField(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
+				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
+				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
+				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
 				if (ensemblGMID.containsKey(markerKey)) {
-					doc.addField(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
+					doc.put(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
 				}
 
 				// also add symbol and current name to searchable nomenclature
-				doc.addField(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
-				doc.addField(GxdResultFields.NOMENCLATURE, markerName.get(markerKey));
-				doc.addField(GxdResultFields.MARKER_TYPE, markerSubtype.get(markerKey));
+				doc.put(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
+				doc.put(GxdResultFields.NOMENCLATURE, markerName.get(markerKey));
+				doc.put(GxdResultFields.MARKER_TYPE, markerSubtype.get(markerKey));
 
 				// location stuff
-				doc.addField(GxdResultFields.CHROMOSOME, chr);
-				doc.addField(GxdResultFields.START_COORD, start_coord);
-				doc.addField(GxdResultFields.END_COORD, end_coord);
-				doc.addField(GxdResultFields.CYTOBAND, cytoband.get(markerKey));
-				doc.addField(GxdResultFields.STRAND, strand.get(markerKey));
+				doc.put(GxdResultFields.CHROMOSOME, chr);
+				doc.put(GxdResultFields.START_COORD, start_coord);
+				doc.put(GxdResultFields.END_COORD, end_coord);
+				doc.put(GxdResultFields.CYTOBAND, cytoband.get(markerKey));
+				doc.put(GxdResultFields.STRAND, strand.get(markerKey));
 				if (!spatialString.equals("")) {
-					doc.addField(GxdResultFields.MOUSE_COORDINATE, spatialString);
+					doc.put(GxdResultFields.MOUSE_COORDINATE, spatialString);
 				}
 
 				if (cm_offset == null || cm_offset.equals("-1"))
 					cm_offset = "";
-				doc.addField(GxdResultFields.CENTIMORGAN, cm_offset);
+				doc.put(GxdResultFields.CENTIMORGAN, cm_offset);
 
 				// assay summary
-				doc.addField(GxdResultFields.ASSAY_HAS_IMAGE, "1".equals(assayHasImage.get(assay_key)));
-				doc.addField(GxdResultFields.PROBE_KEY, assayProbeKey.get(assay_key));
-				doc.addField(GxdResultFields.ANTIBODY_KEY, assayAntibodyKey.get(assay_key));
+				doc.put(GxdResultFields.ASSAY_HAS_IMAGE, "1".equals(assayHasImage.get(assay_key)));
+				doc.put(GxdResultFields.PROBE_KEY, assayProbeKey.get(assay_key));
+				doc.put(GxdResultFields.ANTIBODY_KEY, assayAntibodyKey.get(assay_key));
 
 				// assay sorts
-				doc.addField(GxdResultFields.A_BY_SYMBOL, rs.getString("r_by_gene_symbol"));
-				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, rs.getString("r_by_assay_type"));
+				doc.put(GxdResultFields.A_BY_SYMBOL, rs.getString("r_by_gene_symbol"));
+				doc.put(GxdResultFields.A_BY_ASSAY_TYPE, rs.getString("r_by_assay_type"));
 
 				// result summary
-				doc.addField(GxdResultFields.DETECTION_LEVEL, mapDetectionLevel(rs.getString("detection_level")) );
-				doc.addField(GxdResultFields.STRUCTURE_PRINTNAME, printname.get(structureTermKey));
-				doc.addField(GxdResultFields.AGE, rs.getString("age_abbreviation"));
-				doc.addField(GxdResultFields.ASSAY_MGIID, assayID.get(assay_key));
-				doc.addField(GxdResultFields.JNUM, rs.getString("jnum_id"));
-				doc.addField(GxdResultFields.PUBMED_ID, pubmedID.get(rs.getString("reference_key")));
-				doc.addField(GxdResultFields.SHORT_CITATION, citation.get(rs.getString("reference_key")));
-				doc.addField(GxdResultFields.GENOTYPE, allelePairs.get(rs.getString("genotype_key")));
-				doc.addField(GxdResultFields.PATTERN, rs.getString("pattern"));
+				doc.put(GxdResultFields.DETECTION_LEVEL, mapDetectionLevel(rs.getString("detection_level")) );
+				doc.put(GxdResultFields.STRUCTURE_PRINTNAME, printname.get(structureTermKey));
+				doc.put(GxdResultFields.AGE, rs.getString("age_abbreviation"));
+				doc.put(GxdResultFields.ASSAY_MGIID, assayID.get(assay_key));
+				doc.put(GxdResultFields.JNUM, rs.getString("jnum_id"));
+				doc.put(GxdResultFields.PUBMED_ID, pubmedID.get(rs.getString("reference_key")));
+				doc.put(GxdResultFields.SHORT_CITATION, citation.get(rs.getString("reference_key")));
+				doc.put(GxdResultFields.GENOTYPE, allelePairs.get(rs.getString("genotype_key")));
+				doc.put(GxdResultFields.PATTERN, rs.getString("pattern"));
 
 				// add fields for filtering by marker-associated vocabularies
 				for (String mpTerm : markerMpCache.getTerms(markerKey)) {
-					doc.addField(GxdResultFields.MP_HEADERS, mpTerm);
+					doc.put(GxdResultFields.MP_HEADERS, mpTerm);
 				}
 
 				addGoTerms(doc, markerKey);
 
 				for (String doTerm : markerDoCache.getTerms(markerKey)) {
-					doc.addField(GxdResultFields.DO_HEADERS, doTerm);
+					doc.put(GxdResultFields.DO_HEADERS, doTerm);
 				}
 
 				for (String coTerm : resultCoCache.getTerms(result_key)) {
-					doc.addField(GxdResultFields.CO_HEADERS, coTerm);
+					doc.put(GxdResultFields.CO_HEADERS, coTerm);
 				}
 
 				for (String featureType : markerTypeCache.getTerms(markerKey)) {
-					doc.addField(GxdResultFields.FEATURE_TYPES, featureType);
+					doc.put(GxdResultFields.FEATURE_TYPES, featureType);
 				}
 
 				// multi values
 
 				if (systemMap.containsKey(result_key)) {
 					for (String system : systemMap.get(result_key)) {
-						doc.addField(GxdResultFields.ANATOMICAL_SYSTEM, system);
+						doc.put(GxdResultFields.ANATOMICAL_SYSTEM, system);
 					}
 					systemMap.remove(result_key);
 				}
 
 				if (markerNomenMap.containsKey(markerKey)) {
 					for (String nomen : markerNomenMap.get(markerKey)) {
-						doc.addField(GxdResultFields.NOMENCLATURE, nomen);
+						doc.put(GxdResultFields.NOMENCLATURE, nomen);
 					}
 				}
 
@@ -1098,13 +1098,13 @@ public class GxdResultIndexer extends Indexer {
 				if (mutatedInMap.containsKey(genotype_key)) {
 					Map<String, Map<String, String>> gMap = mutatedInMap.get(genotype_key);
 					for (String genotype_marker_key : gMap.keySet()) {
-						doc.addField(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("symbol"));
-						doc.addField(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("name"));
+						doc.put(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("symbol"));
+						doc.put(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("name"));
 
 						// get any synonyms
 						if (markerNomenMap.containsKey(genotype_marker_key)) {
 							for (String synonym : markerNomenMap.get(genotype_marker_key)) {
-								doc.addField(GxdResultFields.MUTATED_IN, synonym);
+								doc.put(GxdResultFields.MUTATED_IN, synonym);
 							}
 						}
 					}
@@ -1114,7 +1114,7 @@ public class GxdResultIndexer extends Indexer {
 					List<String> alleleIds = mutatedInAlleleMap.get(genotype_key);
 
 					for (String alleleId : alleleIds) {
-						doc.addField(GxdResultFields.ALLELE_ID, alleleId);
+						doc.put(GxdResultFields.ALLELE_ID, alleleId);
 					}
 
 				}
@@ -1132,24 +1132,24 @@ public class GxdResultIndexer extends Indexer {
 					}
 
 					for (String annotationID : uniqueAnnotationIDs) {
-						doc.addField(GxdResultFields.ANNOTATION, annotationID);
+						doc.put(GxdResultFields.ANNOTATION, annotationID);
 					}
 				}
 
 				String cellTypeID = rs.getString("cell_type_id");
 				if (vocabAncestorMap.containsKey(cellTypeID)) {
 					// add this DAG node, and all it's parents (up to 'cell')
-					doc.addField(GxdResultFields.ANNOTATION, cellTypeID);
+					doc.put(GxdResultFields.ANNOTATION, cellTypeID);
 					for (String ancestorId : vocabAncestorMap.get(cellTypeID)) {
-						doc.addField(GxdResultFields.ANNOTATION, ancestorId);
+						doc.put(GxdResultFields.ANNOTATION, ancestorId);
 					}
 				} 
 
 				if (imageMap.containsKey(result_key)) {
 					if (has_image.equals("1")) {
 						for (String figure : imageMap.get(result_key)) {
-							doc.addField(GxdResultFields.FIGURE, figure);
-							doc.addField(GxdResultFields.FIGURE_PLAIN, figure);
+							doc.put(GxdResultFields.FIGURE, figure);
+							doc.put(GxdResultFields.FIGURE_PLAIN, figure);
 						}
 					}
 					imageMap.remove(result_key);
@@ -1182,19 +1182,19 @@ public class GxdResultIndexer extends Indexer {
 					// only add unique structures (for best solr indexing
 					// performance)
 					for (String ancestorId : ancestorIDs) {
-						doc.addField(GxdResultFields.STRUCTURE_ID, ancestorId);
+						doc.put(GxdResultFields.STRUCTURE_ID, ancestorId);
 					}
 					for (String ancestorStructure : ancestorStructures) {
-						doc.addField(GxdResultFields.STRUCTURE_ANCESTORS, ancestorStructure);
+						doc.put(GxdResultFields.STRUCTURE_ANCESTORS, ancestorStructure);
 					}
 				}
 				
 				// add the id for this exact structure
-				doc.addField(GxdResultFields.STRUCTURE_EXACT, myEmapaID);
+				doc.put(GxdResultFields.STRUCTURE_EXACT, myEmapaID);
 
 				Set<String> structureKeys = new HashSet<String>();
 				structureKeys.add(structureTermKey);
-				doc.addField(GxdResultFields.ANNOTATED_STRUCTURE_KEY, structureTermKey);
+				doc.put(GxdResultFields.ANNOTATED_STRUCTURE_KEY, structureTermKey);
 
 				if (structureAncestorKeyMap.containsKey(structureTermKey)) {
 					// get ancestors by key as well (for links from AD browser)
@@ -1204,28 +1204,28 @@ public class GxdResultIndexer extends Indexer {
 				}
 
 				for (String structKey : structureKeys) {
-					doc.addField(GxdResultFields.STRUCTURE_KEY, structKey);
+					doc.put(GxdResultFields.STRUCTURE_KEY, structKey);
 				}
 
 				// result sorts
-				doc.addField(GxdResultFields.R_BY_ASSAY_TYPE, rs.getString("r_by_assay_type"));
-				doc.addField(GxdResultFields.R_BY_MRK_SYMBOL, rs.getString("r_by_gene_symbol"));
-				doc.addField(GxdResultFields.R_BY_AGE, rs.getString("r_by_age"));
-				doc.addField(GxdResultFields.R_BY_STRUCTURE, rs.getString("r_by_structure"));
-				doc.addField(GxdResultFields.R_BY_EXPRESSED, rs.getString("r_by_expressed"));
-				doc.addField(GxdResultFields.R_BY_REFERENCE, rs.getString("r_by_reference"));
+				doc.put(GxdResultFields.R_BY_ASSAY_TYPE, rs.getString("r_by_assay_type"));
+				doc.put(GxdResultFields.R_BY_MRK_SYMBOL, rs.getString("r_by_gene_symbol"));
+				doc.put(GxdResultFields.R_BY_AGE, rs.getString("r_by_age"));
+				doc.put(GxdResultFields.R_BY_STRUCTURE, rs.getString("r_by_structure"));
+				doc.put(GxdResultFields.R_BY_EXPRESSED, rs.getString("r_by_expressed"));
+				doc.put(GxdResultFields.R_BY_REFERENCE, rs.getString("r_by_reference"));
 
 				// add matrix grouping fields
 				String stageMatrixGroup = joiner(myEmapaID, isExpressed, theilerStage);
-				doc.addField(GxdResultFields.STAGE_MATRIX_GROUP, stageMatrixGroup);
+				doc.put(GxdResultFields.STAGE_MATRIX_GROUP, stageMatrixGroup);
 
 				String geneMatrixGroup = joiner(myEmapaID, isExpressed, markerKey, theilerStage);
-				doc.addField(GxdResultFields.GENE_MATRIX_GROUP, geneMatrixGroup);
+				doc.put(GxdResultFields.GENE_MATRIX_GROUP, geneMatrixGroup);
 
 				docs.add(doc);
 				if (docs.size() >= solrCacheSize) {
 					writeDocs(docs);
-					docs = new ArrayList<SolrInputDocument>(solrCacheSize);		// max known size
+					docs = new ArrayList<Map<String, Object>>(solrCacheSize);		// max known size
 				}
 			} // while loop (stepping through rows for this chunk)
 
@@ -1323,7 +1323,7 @@ public class GxdResultIndexer extends Indexer {
 		logger.info("Max consolidated_measurement_key: " + end + ", chunks: " + (modValue + 1));
 
 		// can set the size to our known max (slight efficiency gain)
-		Collection<SolrInputDocument> docs = new ArrayList<SolrInputDocument>(1001);
+		List<Map<String, Object>> docs = new ArrayList<Map<String, Object>>(1001);
 
 		// get a formatter for average QN TPM level
 		NumberFormat fmt = NumberFormat.getInstance();
@@ -1428,26 +1428,26 @@ public class GxdResultIndexer extends Indexer {
 					continue;
 				}
 
-				SolrInputDocument doc = new SolrInputDocument();
+				Map<String, Object> doc = new HashMap<String, Object>();
 
 				// Add the single value fields
-				doc.addField(GxdResultFields.KEY, unique_key);
-				doc.addField(GxdResultFields.MARKER_KEY, markerKey);
-				doc.addField(IndexConstants.MRK_BY_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
-				doc.addField(GxdResultFields.M_BY_LOCATION, markerByLocation.get(markerKey));
-				doc.addField(GxdResultFields.ASSAY_KEY, assay_key);
-				doc.addField(GxdResultFields.RESULT_KEY, result_key);
-				doc.addField(GxdResultFields.RESULT_TYPE, assay_type);
-				doc.addField(GxdResultFields.ASSAY_TYPE, assay_type);
-				doc.addField(GxdResultFields.THEILER_STAGE, theilerStage);
-				doc.addField(GxdResultFields.EMAPS_ID, rs.getString("emaps_id"));
-				doc.addField(GxdResultFields.IS_EXPRESSED, isExpressed);
-				doc.addField(GxdResultFields.AGE_MIN, roundAge(rs.getString("age_min")));
-				doc.addField(GxdResultFields.AGE_MAX, roundAge(rs.getString("age_max")));
-				doc.addField(GxdResultFields.TPM_LEVEL, rs.getString("tpm_level"));
-				doc.addField(GxdResultFields.AVG_QN_TPM_LEVEL, avgQnTpm);
-				doc.addField(GxdResultFields.BIOLOGICAL_REPLICATES, rs.getString("biological_replicate_count"));
-				doc.addField(GxdResultFields.SEX, rs.getString("sex"));
+				doc.put(GxdResultFields.KEY, unique_key);
+				doc.put(GxdResultFields.MARKER_KEY, markerKey);
+				doc.put(IndexConstants.MRK_BY_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
+				doc.put(GxdResultFields.M_BY_LOCATION, markerByLocation.get(markerKey));
+				doc.put(GxdResultFields.ASSAY_KEY, assay_key);
+				doc.put(GxdResultFields.RESULT_KEY, result_key);
+				doc.put(GxdResultFields.RESULT_TYPE, assay_type);
+				doc.put(GxdResultFields.ASSAY_TYPE, assay_type);
+				doc.put(GxdResultFields.THEILER_STAGE, theilerStage);
+				doc.put(GxdResultFields.EMAPS_ID, rs.getString("emaps_id"));
+				doc.put(GxdResultFields.IS_EXPRESSED, isExpressed);
+				doc.put(GxdResultFields.AGE_MIN, roundAge(rs.getString("age_min")));
+				doc.put(GxdResultFields.AGE_MAX, roundAge(rs.getString("age_max")));
+				doc.put(GxdResultFields.TPM_LEVEL, rs.getString("tpm_level"));
+				doc.put(GxdResultFields.AVG_QN_TPM_LEVEL, avgQnTpm);
+				doc.put(GxdResultFields.BIOLOGICAL_REPLICATES, rs.getString("biological_replicate_count"));
+				doc.put(GxdResultFields.SEX, rs.getString("sex"));
 				String note = rs.getString("note");
 				Integer isConditional = rs.getInt("is_conditional");
 				if (isConditional.intValue() == 1) {
@@ -1457,8 +1457,8 @@ public class GxdResultIndexer extends Indexer {
 						note = "Conditional mutant. " + note;
 					}
 				}
-				doc.addField(GxdResultFields.NOTES, note);
-				doc.addField(GxdResultFields.CONSOLIDATED_SAMPLE_KEY, rs.getString("consolidated_sample_key"));
+				doc.put(GxdResultFields.NOTES, note);
+				doc.put(GxdResultFields.CONSOLIDATED_SAMPLE_KEY, rs.getString("consolidated_sample_key"));
 
 				boolean isWildType = "-1".equals(genotypeKey)
 					|| (combination == null)
@@ -1469,83 +1469,83 @@ public class GxdResultIndexer extends Indexer {
 					wildType = "wild type";
 				}
 
-				doc.addField(GxdResultFields.IS_WILD_TYPE, wildType);
+				doc.put(GxdResultFields.IS_WILD_TYPE, wildType);
 
 				// marker summary
-				doc.addField(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
-				doc.addField(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
-				doc.addField(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
+				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
+				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
+				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
 				if (ensemblGMID.containsKey(markerKey)) {
-					doc.addField(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
+					doc.put(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
 				}
 
 				// also add symbol and current name to searchable nomenclature
-				doc.addField(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
-				doc.addField(GxdResultFields.NOMENCLATURE, markerName.get(markerKey));
-				doc.addField(GxdResultFields.MARKER_TYPE, markerSubtype.get(markerKey));
+				doc.put(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
+				doc.put(GxdResultFields.NOMENCLATURE, markerName.get(markerKey));
+				doc.put(GxdResultFields.MARKER_TYPE, markerSubtype.get(markerKey));
 
 				// add fields for filtering by marker-associated vocabularies
 				for (String mpTerm : markerMpCache.getTerms(markerKey)) {
-					doc.addField(GxdResultFields.MP_HEADERS, mpTerm);
+					doc.put(GxdResultFields.MP_HEADERS, mpTerm);
 				}
 				
 				addGoTerms(doc, markerKey);
 
 				for (String doTerm : markerDoCache.getTerms(markerKey)) {
-					doc.addField(GxdResultFields.DO_HEADERS, doTerm);
+					doc.put(GxdResultFields.DO_HEADERS, doTerm);
 				}
 
 				for (String featureType : markerTypeCache.getTerms(markerKey)) {
-					doc.addField(GxdResultFields.FEATURE_TYPES, featureType);
+					doc.put(GxdResultFields.FEATURE_TYPES, featureType);
 				}
 
 				// location stuff
-				doc.addField(GxdResultFields.CHROMOSOME, chr);
-				doc.addField(GxdResultFields.START_COORD, start_coord);
-				doc.addField(GxdResultFields.END_COORD, end_coord);
-				doc.addField(GxdResultFields.CYTOBAND, cytoband.get(markerKey));
-				doc.addField(GxdResultFields.STRAND, strand.get(markerKey));
+				doc.put(GxdResultFields.CHROMOSOME, chr);
+				doc.put(GxdResultFields.START_COORD, start_coord);
+				doc.put(GxdResultFields.END_COORD, end_coord);
+				doc.put(GxdResultFields.CYTOBAND, cytoband.get(markerKey));
+				doc.put(GxdResultFields.STRAND, strand.get(markerKey));
 				if (!spatialString.equals("")) {
-					doc.addField(GxdResultFields.MOUSE_COORDINATE, spatialString);
+					doc.put(GxdResultFields.MOUSE_COORDINATE, spatialString);
 				}
 
 				if (cm_offset == null || cm_offset.equals("-1"))
 					cm_offset = "";
-				doc.addField(GxdResultFields.CENTIMORGAN, cm_offset);
+				doc.put(GxdResultFields.CENTIMORGAN, cm_offset);
 
 				// assay summary
-				doc.addField(GxdResultFields.ASSAY_HAS_IMAGE, "1".equals(assayHasImage.get(assay_key)));
-				doc.addField(GxdResultFields.PROBE_KEY, assayProbeKey.get(assay_key));
-				doc.addField(GxdResultFields.ANTIBODY_KEY, assayAntibodyKey.get(assay_key));
+				doc.put(GxdResultFields.ASSAY_HAS_IMAGE, "1".equals(assayHasImage.get(assay_key)));
+				doc.put(GxdResultFields.PROBE_KEY, assayProbeKey.get(assay_key));
+				doc.put(GxdResultFields.ANTIBODY_KEY, assayAntibodyKey.get(assay_key));
 
 				// assay sorts (For RNA-Seq, push these below the classical data and sort them by reference.)
 				int byReference = rs.getInt("r_by_reference");
-				doc.addField(GxdResultFields.A_BY_SYMBOL, maxSymbol + byReference);
-				doc.addField(GxdResultFields.A_BY_ASSAY_TYPE, maxSymbol + byReference);
+				doc.put(GxdResultFields.A_BY_SYMBOL, maxSymbol + byReference);
+				doc.put(GxdResultFields.A_BY_ASSAY_TYPE, maxSymbol + byReference);
 
 				// result summary
-				doc.addField(GxdResultFields.DETECTION_LEVEL, detectionLevel);
-				doc.addField(GxdResultFields.STRUCTURE_PRINTNAME, printname.get(structureTermKey));
-				doc.addField(GxdResultFields.AGE, rs.getString("age_abbreviation"));
-				doc.addField(GxdResultFields.ASSAY_MGIID, assayID.get(assay_key));
-				doc.addField(GxdResultFields.JNUM, rs.getString("ref_id"));
-				doc.addField(GxdResultFields.SHORT_CITATION, rs.getString("ref_title"));
-				doc.addField(GxdResultFields.GENOTYPE, combination);
-				doc.addField(GxdResultFields.STRAIN, bgStrains.get(genotypeKey));
-				doc.addField(GxdResultFields.PATTERN, rs.getString("pattern"));
+				doc.put(GxdResultFields.DETECTION_LEVEL, detectionLevel);
+				doc.put(GxdResultFields.STRUCTURE_PRINTNAME, printname.get(structureTermKey));
+				doc.put(GxdResultFields.AGE, rs.getString("age_abbreviation"));
+				doc.put(GxdResultFields.ASSAY_MGIID, assayID.get(assay_key));
+				doc.put(GxdResultFields.JNUM, rs.getString("ref_id"));
+				doc.put(GxdResultFields.SHORT_CITATION, rs.getString("ref_title"));
+				doc.put(GxdResultFields.GENOTYPE, combination);
+				doc.put(GxdResultFields.STRAIN, bgStrains.get(genotypeKey));
+				doc.put(GxdResultFields.PATTERN, rs.getString("pattern"));
 
 				// multi values
 
 				if (systemMap.containsKey(result_key)) {
 					for (String system : systemMap.get(result_key)) {
-						doc.addField(GxdResultFields.ANATOMICAL_SYSTEM, system);
+						doc.put(GxdResultFields.ANATOMICAL_SYSTEM, system);
 					}
 					systemMap.remove(result_key);
 				}
 
 				if (markerNomenMap.containsKey(markerKey)) {
 					for (String nomen : markerNomenMap.get(markerKey)) {
-						doc.addField(GxdResultFields.NOMENCLATURE, nomen);
+						doc.put(GxdResultFields.NOMENCLATURE, nomen);
 					}
 				}
 
@@ -1553,13 +1553,13 @@ public class GxdResultIndexer extends Indexer {
 				if (mutatedInMap.containsKey(genotype_key)) {
 					Map<String, Map<String, String>> gMap = mutatedInMap.get(genotype_key);
 					for (String genotype_marker_key : gMap.keySet()) {
-						doc.addField(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("symbol"));
-						doc.addField(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("name"));
+						doc.put(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("symbol"));
+						doc.put(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("name"));
 
 						// get any synonyms
 						if (markerNomenMap.containsKey(genotype_marker_key)) {
 							for (String synonym : markerNomenMap.get(genotype_marker_key)) {
-								doc.addField(GxdResultFields.MUTATED_IN, synonym);
+								doc.put(GxdResultFields.MUTATED_IN, synonym);
 							}
 						}
 					}
@@ -1569,7 +1569,7 @@ public class GxdResultIndexer extends Indexer {
 					List<String> alleleIds = mutatedInAlleleMap.get(genotype_key);
 
 					for (String alleleId : alleleIds) {
-						doc.addField(GxdResultFields.ALLELE_ID, alleleId);
+						doc.put(GxdResultFields.ALLELE_ID, alleleId);
 					}
 
 				}
@@ -1587,7 +1587,7 @@ public class GxdResultIndexer extends Indexer {
 					}
 
 					for (String annotationID : uniqueAnnotationIDs) {
-						doc.addField(GxdResultFields.ANNOTATION, annotationID);
+						doc.put(GxdResultFields.ANNOTATION, annotationID);
 					}
 				}
 
@@ -1618,19 +1618,19 @@ public class GxdResultIndexer extends Indexer {
 					// only add unique structures (for best solr indexing
 					// performance)
 					for (String ancestorId : ancestorIDs) {
-						doc.addField(GxdResultFields.STRUCTURE_ID, ancestorId);
+						doc.put(GxdResultFields.STRUCTURE_ID, ancestorId);
 					}
 					for (String ancestorStructure : ancestorStructures) {
-						doc.addField(GxdResultFields.STRUCTURE_ANCESTORS, ancestorStructure);
+						doc.put(GxdResultFields.STRUCTURE_ANCESTORS, ancestorStructure);
 					}
 				}
 				
 				// add the id for this exact structure
-				doc.addField(GxdResultFields.STRUCTURE_EXACT, myEmapaID);
+				doc.put(GxdResultFields.STRUCTURE_EXACT, myEmapaID);
 
 				Set<String> structureKeys = new HashSet<String>();
 				structureKeys.add(structureTermKey);
-				doc.addField(GxdResultFields.ANNOTATED_STRUCTURE_KEY, structureTermKey);
+				doc.put(GxdResultFields.ANNOTATED_STRUCTURE_KEY, structureTermKey);
 
 				if (structureAncestorKeyMap.containsKey(structureTermKey)) {
 					// get ancestors by key as well (for links from AD browser)
@@ -1640,29 +1640,29 @@ public class GxdResultIndexer extends Indexer {
 				}
 
 				for (String structKey : structureKeys) {
-					doc.addField(GxdResultFields.STRUCTURE_KEY, structKey);
+					doc.put(GxdResultFields.STRUCTURE_KEY, structKey);
 				}
 
 				// result sorts
-				doc.addField(GxdResultFields.R_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_assay_type")));
-				doc.addField(GxdResultFields.R_BY_MRK_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
-				doc.addField(GxdResultFields.R_BY_AGE, Integer.toString(rs.getInt("r_by_age")));
-				doc.addField(GxdResultFields.R_BY_STRUCTURE, Integer.toString(rs.getInt("r_by_structure")));
-				doc.addField(GxdResultFields.R_BY_EXPRESSED, Integer.toString(rs.getInt("r_by_expressed")));
-				doc.addField(GxdResultFields.R_BY_MUTANT_ALLELES, "0");
-				doc.addField(GxdResultFields.R_BY_REFERENCE, Integer.toString(rs.getInt("r_by_reference")));
+				doc.put(GxdResultFields.R_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_assay_type")));
+				doc.put(GxdResultFields.R_BY_MRK_SYMBOL, Integer.toString(rs.getInt("r_by_gene_symbol")));
+				doc.put(GxdResultFields.R_BY_AGE, Integer.toString(rs.getInt("r_by_age")));
+				doc.put(GxdResultFields.R_BY_STRUCTURE, Integer.toString(rs.getInt("r_by_structure")));
+				doc.put(GxdResultFields.R_BY_EXPRESSED, Integer.toString(rs.getInt("r_by_expressed")));
+				doc.put(GxdResultFields.R_BY_MUTANT_ALLELES, "0");
+				doc.put(GxdResultFields.R_BY_REFERENCE, Integer.toString(rs.getInt("r_by_reference")));
 
 				// add matrix grouping fields
 				String stageMatrixGroup = joiner(myEmapaID, isExpressed, theilerStage);
-				doc.addField(GxdResultFields.STAGE_MATRIX_GROUP, stageMatrixGroup);
+				doc.put(GxdResultFields.STAGE_MATRIX_GROUP, stageMatrixGroup);
 
 				String geneMatrixGroup = joiner(myEmapaID, isExpressed, markerKey, theilerStage);
-				doc.addField(GxdResultFields.GENE_MATRIX_GROUP, geneMatrixGroup);
+				doc.put(GxdResultFields.GENE_MATRIX_GROUP, geneMatrixGroup);
 
 				docs.add(doc);
 				if (docs.size() >= solrCacheSize) {
 					writeDocs(docs);
-					docs = new ArrayList<SolrInputDocument>(solrCacheSize);		// max known size
+					docs = new ArrayList<Map<String, Object>>(solrCacheSize);		// max known size
 				}
 			} // while loop (stepping through rows for this chunk)
 
@@ -1681,5 +1681,140 @@ public class GxdResultIndexer extends Indexer {
 		
 		writeDocs(docs);
 		commit();
+	}
+
+	@Override
+	protected String getIndexMappingJson() {
+		String mappingJson = """
+		{
+		  "settings": {
+		    "number_of_shards": 4,
+		    "number_of_replicas": 0,
+		    "refresh_interval": "10s",
+		    "analysis": {
+		      "filter": {
+		        "custom_english_stop": {
+		          "type": "stop",
+		          "stopwords": ["and", "from", "of", "or", "the", "their", "to"]
+		        }
+		      },
+		      "analyzer": {
+		        "lowercase_keyword": {
+		          "tokenizer": "keyword",
+		          "filter": ["lowercase"]
+		        },
+		        "whitespace_lower": {
+		          "tokenizer": "whitespace",
+		          "filter": ["lowercase"]
+		        },
+		        "text_index_analyzer": {
+		          "tokenizer": "whitespace",
+		          "filter": ["lowercase", "custom_english_stop"]
+		        },
+		        "text_query_analyzer": {
+		          "tokenizer": "whitespace",
+		          "filter": ["lowercase", "custom_english_stop"]
+		        }
+		      }
+		    }
+		  },
+		  "mappings": {
+		    "properties": {
+		      "markerKey": { "type": "keyword" },
+		      "nomenclature": { "type": "text", "analyzer": "whitespace_lower", "fields": { "keyword": { "type": "keyword" } } },
+		      "annotation": { "type": "keyword" },
+		      "markerMgiid": { "type": "keyword" },
+		      "markerSymbol": { "type": "keyword" },
+		      "markerSymbolLower": { "type": "text", "analyzer": "text_index_analyzer" },
+		      "markerName": { "type": "keyword", "index": false },
+		      "markerType": { "type": "keyword" },
+		      "chr": { "type": "keyword", "index": false },
+		      "cM": { "type": "keyword", "index": false },
+		      "cytoband": { "type": "keyword", "index": false },
+		      "startCoord": { "type": "keyword", "index": false },
+		      "endCoord": { "type": "keyword", "index": false },
+		      "strand": { "type": "keyword", "index": false },
+		      "mc": { "type": "geo_point" },
+		      "ensemblGeneModelID": { "type": "keyword", "index": false },
+		
+		      "byMrkSymbol": { "type": "integer" },
+		      "byLocation": { "type": "integer" },
+		
+		      "assayKey": { "type": "keyword" },
+		      "hasImage": { "type": "boolean" },
+		      "byAssayMrkSymbol": { "type": "integer" },
+		      "byAssayAssayType": { "type": "integer" },
+		
+		      "resultType": { "type": "text", "analyzer": "text_index_analyzer" },
+		      "resultKey": { "type": "keyword" },
+		      "uniqueKey": { "type": "keyword" },
+		      "assayType": { "type": "keyword" },
+		      "ageMin": { "type": "float" },
+		      "ageMax": { "type": "float" },
+		      "consolidatedSampleKey": { "type": "keyword" },
+		
+		      "theilerStage": { "type": "integer" },
+		      "isExpressed": { "type": "keyword" },
+		
+		      "stageMatrixGroup": { "type": "keyword" },
+		      "geneMatrixGroup": { "type": "keyword" },
+		
+		      "structureAncestors": { "type": "text", "analyzer": "text_index_analyzer" },
+		      "structureExact": { "type": "keyword" },
+		      "emapsId": { "type": "text", "analyzer": "whitespace_lower" },
+		      "structureId": { "type": "keyword" },
+		      "structureKey": { "type": "keyword" },
+		      "annotatedStructureKey": { "type": "keyword" },
+		      "structureDescendants": { "type": "text", "analyzer": "text_index_analyzer" },
+		      "isWildType": { "type": "keyword" },
+		      "mutatedIn": { "type": "text", "analyzer": "whitespace_lower" },
+		      "alleleId": { "type": "keyword" },
+		
+		      "tpmLevel": { "type": "keyword" },
+		      "avgQnTpmLevel": { "type": "keyword", "index": false },
+		      "biologicalReplicates": { "type": "keyword", "index": false },
+		      "strain": { "type": "keyword", "index": false },
+		      "sex": { "type": "keyword", "index": false },
+		      "notes": { "type": "keyword", "index": false },
+		
+		      "assayMgiid": { "type": "keyword" },
+		      "anatomicalSystem": { "type": "keyword" },
+		      "age": { "type": "keyword", "index": false },
+		      "printname": { "type": "keyword", "index": false },
+		      "detectionLevel": { "type": "keyword" },
+		      "figure": { "type": "keyword" },
+		      "figurePlain": { "type": "keyword" },
+		      "genotype": { "type": "keyword", "index": false },
+		      "jNum": { "type": "keyword" },
+		      "pubmedId": { "type": "keyword", "index": false },
+		      "shortCitation": { "type": "keyword", "index": false },
+		      "pattern": { "type": "keyword", "index": false },
+		      "cellType": { "type": "keyword", "index": false },
+		
+		      "byResultAssayType": { "type": "integer" },
+		      "byResultMrkSymbol": { "type": "integer" },
+		      "byResultAge": { "type": "integer" },
+		      "byResultStructure": { "type": "integer" },
+		      "byResultExpressed": { "type": "integer" },
+		      "byResultMutantAlleles": { "type": "integer" },
+		      "byResultReference": { "type": "integer" },
+		
+		      "probeKey": { "type": "keyword" },
+		      "antibodyKey": { "type": "keyword" },
+		
+		      "mpHeaders": { "type": "keyword" },
+		      "goHeadersBP": { "type": "keyword" },
+		      "goHeadersCC": { "type": "keyword" },
+		      "goHeadersMF": { "type": "keyword" },
+		      "doHeaders": { "type": "keyword" },
+		      "coHeaders": { "type": "keyword" },
+		      "featureTypes": { "type": "keyword" },
+		
+		      "_version_": { "type": "long" }
+		    }
+		  }
+		}
+		""";
+		return mappingJson;
 	}
 }

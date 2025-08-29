@@ -2,15 +2,19 @@ package org.jax.mgi.gxdindexer;
 
 import java.sql.ResultSet;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
+
+import co.elastic.clients.elasticsearch._types.mapping.IntegerNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty;
+import co.elastic.clients.elasticsearch._types.mapping.LongNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.Property;
+import co.elastic.clients.elasticsearch._types.mapping.TextProperty;
 
 /**
  * GxdProfileMarkerIndexer
@@ -37,7 +41,7 @@ public class GxdProfileMarkerIndexer extends Indexer
 	//--- constructors ---//
 	
 	public GxdProfileMarkerIndexer () {
-		super("gxdProfileMarker");
+		super("gxd_profile_marker");
 	}
 
 	//--- methods ---//
@@ -253,7 +257,7 @@ public class GxdProfileMarkerIndexer extends Indexer
 
 	// build and return a solr document for the given marker key and its
 	// (given) results, pulling data from the two maps as well
-	public SolrInputDocument buildSolrDoc(
+	public Map<String, Object> buildSolrDoc(
 		Integer markerKey, 
 		String markerID,
 		List<Result> markerResults
@@ -262,11 +266,11 @@ public class GxdProfileMarkerIndexer extends Indexer
 
 		String mrkKey = "" + markerKey;
 		
-		SolrInputDocument doc = new SolrInputDocument();
+		Map<String, Object> doc = new HashMap<>();
 		// Add the single value fields
-		doc.addField(GxdResultFields.KEY, mrkKey);
-		doc.addField(GxdResultFields.MARKER_KEY, markerKey);
-		doc.addField(GxdResultFields.MARKER_MGIID, markerID);
+		doc.put(GxdResultFields.KEY, mrkKey);
+		doc.put(GxdResultFields.MARKER_KEY, markerKey);
+		doc.put(GxdResultFields.MARKER_MGIID, markerID);
 				
 		// iterate this marker's results to build various search fields.
 
@@ -299,15 +303,15 @@ public class GxdProfileMarkerIndexer extends Indexer
 			}
 		    }
 		} 
-		doc.addField(GxdResultFields.PROF_POS_C_EXACT,   toInts(posCexact));
-		doc.addField(GxdResultFields.PROF_POS_C_ANC,     toInts(posCanc));
-		doc.addField(GxdResultFields.PROF_POS_C_EXACT_A, toInts(posCexactA));
-		doc.addField(GxdResultFields.PROF_POS_C_ANC_A,   toInts(posCancA));
+		doc.put(GxdResultFields.PROF_POS_C_EXACT,   toInts(posCexact));
+		doc.put(GxdResultFields.PROF_POS_C_ANC,     toInts(posCanc));
+		doc.put(GxdResultFields.PROF_POS_C_EXACT_A, toInts(posCexactA));
+		doc.put(GxdResultFields.PROF_POS_C_ANC_A,   toInts(posCancA));
 
-		doc.addField(GxdResultFields.PROF_POS_R_EXACT,   toInts(posRexact));
-		doc.addField(GxdResultFields.PROF_POS_R_ANC,     toInts(posRanc));
-		doc.addField(GxdResultFields.PROF_POS_R_EXACT_A, toInts(posRexactA));
-		doc.addField(GxdResultFields.PROF_POS_R_ANC_A,   toInts(posRancA));
+		doc.put(GxdResultFields.PROF_POS_R_EXACT,   toInts(posRexact));
+		doc.put(GxdResultFields.PROF_POS_R_ANC,     toInts(posRanc));
+		doc.put(GxdResultFields.PROF_POS_R_EXACT_A, toInts(posRexactA));
+		doc.put(GxdResultFields.PROF_POS_R_ANC_A,   toInts(posRancA));
 
 		return doc;
 	}
@@ -318,7 +322,7 @@ public class GxdProfileMarkerIndexer extends Indexer
 		List<Integer> markerKeys = getMarkerKeys();
 		fillEmaps2Emapa();
 		fillEmapsAncestors();
-		Collection<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
+		List<Map<String, Object>> docs = new ArrayList<>();
 
 		int startIndex = 0;
 		int numMarkers = markerKeys.size();
@@ -349,7 +353,7 @@ public class GxdProfileMarkerIndexer extends Indexer
 				if (docs.size() > cacheSize) {
                                         logger.info(" - writing " + docs.size() + " docs.");
 					writeDocs(docs);
-					docs = new ArrayList<SolrInputDocument>();
+					docs = new ArrayList<>();
 				}
 			}
 			logger.info(" - built solr docs");
@@ -401,5 +405,122 @@ public class GxdProfileMarkerIndexer extends Indexer
 	public static String structureToSolrString(String stage,String structureId)
 	{
 		return "TS"+stage+":"+structureId;
+	}
+
+	@Override
+	protected String getIndexMappingJson() {
+		String mappingJson = """
+		{
+		  "settings": {
+		    "number_of_shards": 4,
+		    "number_of_replicas": 0,
+		    "refresh_interval": "10s",
+		    "analysis": {
+		      "analyzer": {
+		        "ancestor_path_index": {
+		          "type": "custom",
+		          "tokenizer": "keyword"
+		        },
+		        "ancestor_path_query": {
+		          "type": "custom",
+		          "tokenizer": "path_hierarchy"
+		        },
+		        "descendent_path_index": {
+		          "type": "custom",
+		          "tokenizer": "path_hierarchy"
+		        },
+		        "descendent_path_query": {
+		          "type": "custom",
+		          "tokenizer": "keyword"
+		        },
+		        "lowercase_keyword": {
+		          "type": "custom",
+		          "tokenizer": "keyword",
+		          "filter": ["lowercase"]
+		        },
+		        "phonetic_en": {
+		          "type": "custom",
+		          "tokenizer": "standard",
+		          "filter": ["double_metaphone"]
+		        },
+		        "text_general": {
+		          "type": "custom",
+		          "tokenizer": "standard",
+		          "filter": ["lowercase", "stopwords_filter"]
+		        },
+		        "anatomy_index": {
+		          "type": "custom",
+		          "tokenizer": "whitespace",
+		          "filter": ["stopwords_filter", "word_delimiter", "lowercase"]
+		        },
+		        "anatomy_query": {
+		          "type": "custom",
+		          "tokenizer": "whitespace",
+		          "filter": ["stopwords_filter", "lowercase", "word_delimiter"]
+		        }
+		      },
+		      "filter": {
+		        "stopwords_filter": {
+		          "type": "stop",
+		          "stopwords": ["and", "from", "of", "or", "the", "their", "to"]
+		        },
+		        "double_metaphone": {
+		          "type": "phonetic",
+		          "encoder": "double_metaphone",
+		          "replace": false
+		        },
+		        "word_delimiter": {
+		          "type": "word_delimiter",
+		          "generate_word_parts": true,
+		          "generate_number_parts": true,
+		          "catenate_words": true,
+		          "catenate_numbers": true,
+		          "split_on_case_change": false,
+		          "preserve_original": true
+		        }
+		      }
+		    }
+		  },
+		  "mappings": {
+		    "dynamic_templates": [
+		      {
+		        "strings_as_keyword": {
+		          "match_mapping_type": "string",
+		          "mapping": {
+		            "type": "keyword"
+		          }
+		        }
+		      }
+		    ],
+		    "properties": {
+		      "uniqueKey": { "type": "keyword" },
+		      "markerKey": { "type": "integer" },
+		      "markerMgiid": { "type": "keyword" },
+		
+		      "posCExact": { "type": "integer" },
+		      "posCAnc": { "type": "integer" },
+		      "posRExact": { "type": "integer" },
+		      "posRAnc": { "type": "integer" },
+		
+		      "posCExactA": { "type": "integer" },
+		      "posCAncA": { "type": "integer" },
+		      "posRExactA": { "type": "integer" },
+		      "posRAncA": { "type": "integer" },
+		
+		      "_version_": { "type": "long" },
+		
+		      "anatomy": { "type": "text", "analyzer": "anatomy_index", "search_analyzer": "anatomy_query" },
+		
+		      "ancestor_path": { "type": "text", "analyzer": "ancestor_path_index", "search_analyzer": "ancestor_path_query" },
+		      "descendent_path": { "type": "text", "analyzer": "descendent_path_index", "search_analyzer": "descendent_path_query" },
+		      "lowercase_field": { "type": "text", "analyzer": "lowercase_keyword" },
+		      "phonetic_field": { "type": "text", "analyzer": "phonetic_en" },
+		      "text_field": { "type": "text", "analyzer": "text_general" }
+		    }
+		  }
+		}
+
+		""";
+		return mappingJson;
 	}
 }

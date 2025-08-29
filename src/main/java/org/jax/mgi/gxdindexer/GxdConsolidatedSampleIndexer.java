@@ -2,10 +2,16 @@ package org.jax.mgi.gxdindexer;
 
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
+
+import co.elastic.clients.elasticsearch._types.mapping.IntegerNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty;
+import co.elastic.clients.elasticsearch._types.mapping.LongNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.Property;
 
 /**
  * GxdConsolidatedSampleIndexer This index is intended to be a lookup for
@@ -14,11 +20,11 @@ import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
 
 public class GxdConsolidatedSampleIndexer extends Indexer {
 	public GxdConsolidatedSampleIndexer() {
-		super("gxdConsolidatedSample");
+		super("gxd_consolidated_sample");
 	}
 
 	public void index() throws Exception {
-		List<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
+		List<Map<String, Object>> docs = new ArrayList<>();
 		String cmd =
 			"with counts as ( " +
 			"select sm.consolidated_sample_key, count(*) as bioreplicateCount " +
@@ -36,17 +42,17 @@ public class GxdConsolidatedSampleIndexer extends Indexer {
 
 		ResultSet rs = ex.executeProto(cmd);
 		while (rs.next()) {
-			SolrInputDocument doc = new SolrInputDocument();
-			doc.addField(GxdResultFields.CONSOLIDATED_SAMPLE_KEY, rs.getString("consolidated_sample_key"));
-			doc.addField(GxdResultFields.STRUCTURE_EXACT, rs.getString("structure_exact"));
-			doc.addField(GxdResultFields.THEILER_STAGE, rs.getString("theiler_stage"));
-			doc.addField(GxdResultFields.STRAIN, rs.getString("background_strain"));
-			doc.addField(GxdResultFields.GENOTYPE, rs.getString("genotype"));
-			doc.addField(GxdResultFields.ASSAY_MGIID, rs.getString("assay_id"));
-			doc.addField(GxdResultFields.AGE, rs.getString("age"));
-			doc.addField(GxdResultFields.STRUCTURE_PRINTNAME, rs.getString("printname"));
-			doc.addField(GxdResultFields.SEX, rs.getString("sex"));
-			doc.addField(GxdResultFields.BIOREPLICATE_COUNT, rs.getString("bioreplicateCount"));
+			Map<String, Object> doc = new HashMap<>();
+			doc.put(GxdResultFields.CONSOLIDATED_SAMPLE_KEY, rs.getString("consolidated_sample_key"));
+			doc.put(GxdResultFields.STRUCTURE_EXACT, rs.getString("structure_exact"));
+			doc.put(GxdResultFields.THEILER_STAGE, rs.getString("theiler_stage"));
+			doc.put(GxdResultFields.STRAIN, rs.getString("background_strain"));
+			doc.put(GxdResultFields.GENOTYPE, rs.getString("genotype"));
+			doc.put(GxdResultFields.ASSAY_MGIID, rs.getString("assay_id"));
+			doc.put(GxdResultFields.AGE, rs.getString("age"));
+			doc.put(GxdResultFields.STRUCTURE_PRINTNAME, rs.getString("printname"));
+			doc.put(GxdResultFields.SEX, rs.getString("sex"));
+			doc.put(GxdResultFields.BIOREPLICATE_COUNT, rs.getString("bioreplicateCount"));
 			docs.add(doc);
 		}
 		writeDocs(docs);
@@ -54,5 +60,94 @@ public class GxdConsolidatedSampleIndexer extends Indexer {
 
 		commit();
 		logger.info("load completed");
+	}
+
+	@Override
+	protected String getIndexMappingJson() {
+		String mappingJson = """
+		{
+		  "settings": {
+		    "number_of_shards": 4,
+		    "number_of_replicas": 0,
+		    "refresh_interval": "10s",
+		    "analysis": {
+		      "analyzer": {
+		        "lowercase_keyword": {
+		          "tokenizer": "keyword",
+		          "filter": ["lowercase"]
+		        },
+		        "path_hierarchy": {
+		          "tokenizer": "path_hierarchy"
+		        },
+		        "custom_english": {
+		          "tokenizer": "standard",
+		          "filter": [
+		            "lowercase",
+		            "custom_stop"
+		          ]
+		        }
+		      },
+		      "filter": {
+		        "custom_stop": {
+		          "type": "stop",
+		          "stopwords": ["and", "from", "of", "or", "the", "their", "to"]
+		        }
+		      }
+		    }
+		  },
+		  "mappings": {
+		    "properties": {
+		      "consolidatedSampleKey": {
+		        "type": "keyword"
+		      },
+		      "structureExact": {
+		        "type": "text",
+		        "analyzer": "lowercase_keyword"
+		      },
+		      "theilerStage": {
+		        "type": "integer"
+		      },
+		      "strain": {
+		        "type": "keyword"
+		      },
+		      "genotype": {
+		        "type": "keyword"
+		      },
+		      "assayMgiid": {
+		        "type": "keyword"
+		      },
+		      "age": {
+		        "type": "keyword"
+		      },
+		      "printname": {
+		        "type": "keyword"
+		      },
+		      "sex": {
+		        "type": "keyword"
+		      },
+		      "bioreplicateCount": {
+		        "type": "integer"
+		      },
+		      "_version_": {
+		        "type": "long"
+		      },
+		      "ancestor_path": {
+		        "type": "text",
+		        "analyzer": "keyword",
+		        "search_analyzer": "path_hierarchy"
+		      },
+		      "descendent_path": {
+		        "type": "text",
+		        "analyzer": "path_hierarchy",
+		        "search_analyzer": "keyword"
+		      },
+		      "location": {
+		        "type": "geo_point"
+		      }
+		    }
+		  }
+		}
+		""";
+		return mappingJson;
 	}
 }

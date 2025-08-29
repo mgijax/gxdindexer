@@ -2,10 +2,10 @@ package org.jax.mgi.gxdindexer;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.sql.ResultSet;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -14,12 +14,27 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrClient;
-import org.apache.solr.common.SolrInputDocument;
+import org.apache.http.HttpHost;
+import org.elasticsearch.client.RestClient;
 import org.jax.mgi.gxdindexer.shr.SQLExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch._types.Refresh;
+import co.elastic.clients.elasticsearch._types.Time;
+import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch.indices.CreateIndexRequest;
+import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
+import co.elastic.clients.elasticsearch.indices.DeleteIndexRequest;
+import co.elastic.clients.elasticsearch.indices.IndexSettings;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.transport.ElasticsearchTransport;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
 
 /**
  * Indexer
@@ -33,11 +48,11 @@ import org.slf4j.LoggerFactory;
 
 public abstract class Indexer implements Runnable {
 
-	private ConcurrentUpdateSolrClient client = null;
+    protected ElasticsearchClient client;
 	public SQLExecutor ex = new SQLExecutor();
 
 	public Logger logger = LoggerFactory.getLogger(this.getClass());
-	private String solrIndexName = "";
+	private String indexName = "";
 	protected DecimalFormat df = new DecimalFormat("#.00");
 	protected Runtime runtime = Runtime.getRuntime();
 	public boolean indexPassed = true;
@@ -49,7 +64,7 @@ public abstract class Indexer implements Runnable {
 	// This is essentially running them in batches
 
 	protected Indexer(String solrIndexName) {
-		this.solrIndexName = solrIndexName;
+		this.indexName = solrIndexName;
 	}
 
 	public void setupConnection() throws Exception {
@@ -68,24 +83,25 @@ public abstract class Indexer implements Runnable {
 		}
 		logger.info("db connection info: "+ ex);
 
-		String solrBaseUrl = props.getProperty("index.url");
-		
-		logger.info("Setting up index: " + solrBaseUrl);
-		try {
-			client = new ConcurrentUpdateSolrClient.Builder(solrBaseUrl + "/" + solrIndexName).withQueueSize(160).withThreadCount(4).build();
-		} catch (Throwable e) {
-			logger.info("Failed to set up solr client:");
-			e.printStackTrace();
-			throw e;
-		}
-		logger.info("Working with index: " + solrBaseUrl + "/" + solrIndexName);
+        String esUrl = props.getProperty("index.url"); // example: http://localhost:9200
 
-		try {
-			logger.info("Deleting current index: " + solrIndexName);
-			client.deleteByQuery("*:*");
-			commit();
-		}
-		catch (Exception e) { throw e; }
+        logger.info("Connecting to Elasticsearch: " + esUrl);
+
+        RestClient restClient = RestClient.builder(HttpHost.create(esUrl)).build();
+        ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
+        client = new ElasticsearchClient(transport);
+
+        // clear existing index
+//        try {
+//            logger.info("Deleting all docs in index: " + indexName);
+//            DeleteByQueryRequest delReq = new DeleteByQueryRequest.Builder()
+//                    .index(indexName)
+//                    .query(QueryBuilders.matchAll().build()._toQuery())
+//                    .build();
+//            client.deleteByQuery(delReq);
+//        } catch (Exception e) {
+//            logger.warn("Delete by query failed (maybe index not present): " + e.getMessage());
+//        }
 	}
 
 	/*
@@ -100,6 +116,8 @@ public abstract class Indexer implements Runnable {
 	public void run() {
 		try {
 			setupConnection();
+			deleteIndex();
+			createIndex();
 			index();
 			closeConnection();
 			logger.info("Completed run of " + getClass());
@@ -127,8 +145,13 @@ public abstract class Indexer implements Runnable {
 		if (!this.skipOptimizer) {
 			optimize(true);
 		}
-		logger.info("Solr Documents are flushed to the server shuting down: " + solrIndexName);
-		client.close();
+		logger.info("Solr Documents are flushed to the server shuting down: " + indexName);
+		try {
+			client.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public void commit() {
@@ -136,30 +159,30 @@ public abstract class Indexer implements Runnable {
 	}
 	
 	public void optimize(boolean wait) {
-		try {
-			logger.info("Waiting for Solr Optimize");
-			if(wait) {
-				client.optimize(wait, wait);
-			} else {
-				client.optimize();
-			}
-		} catch (SolrServerException | IOException e) {
-			e.printStackTrace();
-		}
+//		try {
+//			logger.info("Waiting for Solr Optimize");
+//			if(wait) {
+//				client.optimize(wait, wait);
+//			} else {
+//				client.optimize();
+//			}
+//		} catch (SolrServerException | IOException e) {
+//			e.printStackTrace();
+//		}
 	}
 	
 	public void commit(boolean wait) {
-		try {
-			logger.info("Waiting for Solr Commit");
-			checkMemory();
-			if(wait) {
-				client.commit(wait, wait);
-			} else {
-				client.commit();
-			}
-		} catch (SolrServerException | IOException e) {
-			e.printStackTrace();
-		}
+//		try {
+//			logger.info("Waiting for Solr Commit");
+//			checkMemory();
+//			if(wait) {
+//				client.commit(wait, wait);
+//			} else {
+//				client.commit();
+//			}
+//		} catch (SolrServerException | IOException e) {
+//			e.printStackTrace();
+//		}
 	}
 	
 	private void checkMemory() {
@@ -233,16 +256,32 @@ public abstract class Indexer implements Runnable {
 	 * Here we also spawn a new process for each batch of documents.
 	 */
 	
-	public void writeDocs(Collection<SolrInputDocument> docs) {
-		if(docs == null || docs.size() == 0) return;
-		
-		try {
-			client.add(docs);
-		} catch (SolrServerException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	public void writeDocs(List<Map<String, Object>> docs) {
+        if (docs == null || docs.isEmpty()) return;
+
+        List<BulkOperation> operations = new ArrayList<>();
+        for (Map<String, Object> doc : docs) {
+            operations.add(BulkOperation.of(b -> b
+                    .index(idx -> idx
+                            .index(indexName)
+                            .document(doc)
+                    )
+            ));
+        }
+
+        BulkRequest bulkRequest = BulkRequest.of(b -> b
+                .operations(operations)
+                .refresh(Refresh.True) // equivalent to a commit
+        );
+
+        try {
+            BulkResponse response = client.bulk(bulkRequest);
+            if (response.errors()) {
+                System.err.println("Some documents failed to index: " + response.items());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 		
 	}
 
@@ -342,9 +381,9 @@ public abstract class Indexer implements Runnable {
 	 * Convenience method to add the given value for the given solr field.
 	 * Is a no-op if either the field or the value are null.
 	 */
-	protected void addIfNotNull(SolrInputDocument solrDoc, String solrField, Object value) {
+	protected void addIfNotNull(Map<String, Object> doc, String solrField, Object value) {
 		if ((value != null) && (solrField != null)) {
-			solrDoc.addField(solrField, value);
+			doc.put(solrField, value);
 		}
 	}
 
@@ -352,10 +391,10 @@ public abstract class Indexer implements Runnable {
 	 * Convenience method to add all items from an iterable to a particular solr field.
 	 * Ignores input if null.
 	 */
-	protected void addAll(SolrInputDocument solrDoc,String solrField,Iterable<String> items) {
+	protected void addAll(Map<String, Object> doc,String solrField,Iterable<String> items) {
 		if(items != null) {
 			for(Object obj : items) {
-				solrDoc.addField(solrField,obj);
+				doc.put(solrField,obj);
 			}
 		}
 	}
@@ -364,24 +403,24 @@ public abstract class Indexer implements Runnable {
 	 * Convenience method to add all items from a lookup map
 	 * to a particular solr field. Ignores input if lookupId doesn't exist.
 	 */
-	protected void addAllFromLookup(SolrInputDocument solrDoc,String solrField,String lookupId,Map<String,Set<String>> lookupRef) {
+	protected void addAllFromLookup(Map<String, Object> doc,String solrField,String lookupId,Map<String,Set<String>> lookupRef) {
 		if(lookupRef.containsKey(lookupId)) {
 			for(Object obj : lookupRef.get(lookupId)) {
-				solrDoc.addField(solrField,obj);
+				doc.put(solrField,obj);
 			}
 		}
 	}
 
 
 	private Map<String,Set<String>> dupTracker = new HashMap<String,Set<String>>();
-	protected void addAllFromLookupNoDups(SolrInputDocument solrDoc,String solrField,String lookupId,Map<String,Set<String>> lookupRef) {
+	protected void addAllFromLookupNoDups(Map<String, Object> doc,String solrField,String lookupId,Map<String,Set<String>> lookupRef) {
 		Set<String> uniqueList = getNoDupList(solrField);
 
 		if(lookupRef.containsKey(lookupId)) {
 			for(String obj : lookupRef.get(lookupId)) {
 				if(uniqueList.contains(obj)) continue;
 				else uniqueList.add(obj);
-				solrDoc.addField(solrField,obj);
+				doc.put(solrField,obj);
 			}
 		}
 	}
@@ -396,11 +435,11 @@ public abstract class Indexer implements Runnable {
 		return uniqueList;
 	}
 	
-	protected void addFieldNoDup(SolrInputDocument solrDoc,String solrField,String value) {
+	protected void addFieldNoDup(Map<String, Object> doc,String solrField,String value) {
 		Set<String> uniqueList = getNoDupList(solrField);
 		if(uniqueList.contains(value)) return;
 		uniqueList.add(value);
-		solrDoc.addField(solrField,value);
+		doc.put(solrField,value);
 	}
 
 	protected void resetDupTracking() {
@@ -432,4 +471,27 @@ public abstract class Indexer implements Runnable {
 	protected void logFreeMemory() {
 		logger.info("  - free memory: " + Runtime.getRuntime().freeMemory() + " bytes");
 	}
+	
+	protected abstract String getIndexMappingJson();
+	
+    public void createIndex() throws IOException {
+    	CreateIndexRequest request = new CreateIndexRequest.Builder()
+    		    .index(this.indexName)
+    		    .withJson(new StringReader(getIndexMappingJson()))
+    		    .build();
+    	
+        // Send request
+        CreateIndexResponse response = client.indices().create(request);
+
+        logger.info("Create Index " + this.indexName + ": " + response.acknowledged() );
+    }	
+	
+    public void deleteIndex() throws IOException {
+    	try {
+    		this.client.indices().delete(new DeleteIndexRequest.Builder().index(this.indexName).build());
+			logger.info("Delete index " + this.indexName + ": deleted");
+		} catch (Exception e) {
+			logger.info("Delete index " + this.indexName + ": " + e.getMessage());
+		}
+    }	
 }

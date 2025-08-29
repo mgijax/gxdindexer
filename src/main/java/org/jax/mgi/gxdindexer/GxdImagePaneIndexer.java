@@ -3,14 +3,12 @@ package org.jax.mgi.gxdindexer;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.solr.common.SolrInputDocument;
 import org.jax.mgi.shr.fe.IndexConstants;
 import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
 import org.jax.mgi.shr.fe.indexconstants.ImagePaneFields;
@@ -18,6 +16,11 @@ import org.jax.mgi.shr.fe.sort.SmartAlphaComparator;
 import org.jax.mgi.shr.jsonmodel.GxdImageMeta;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import co.elastic.clients.elasticsearch._types.mapping.IntegerNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty;
+import co.elastic.clients.elasticsearch._types.mapping.LongNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.Property;
 
 /**
  * GxdImagePaneIndexer
@@ -37,7 +40,7 @@ public class GxdImagePaneIndexer extends Indexer
 	public SmartAlphaComparator sac = new SmartAlphaComparator();
 	
     public GxdImagePaneIndexer () 
-    { super("gxdImagePane"); }
+    { super("gxd_image_pane"); }
     
     
     private void initAssayTypeSeqMap() throws SQLException {
@@ -174,7 +177,7 @@ public class GxdImagePaneIndexer extends Indexer
 	            rs = ex.executeProto(query);
 	            
 	            //Map<String,SolrInputDocument> docs = new HashMap<String,SolrInputDocument>();
-	            Collection<SolrInputDocument> docs = new ArrayList<SolrInputDocument>();
+	            List<Map<String, Object>> docs = new ArrayList<>();
 	            
 	            while (rs.next()) 
 	            {           
@@ -182,28 +185,28 @@ public class GxdImagePaneIndexer extends Indexer
 	            	String imageID = rs.getString("mgi_id");
 	            	String assayID = assayIDMap.containsKey(imagepane_key) ? assayIDMap.get(imagepane_key): "";
 
-	            	SolrInputDocument doc = new SolrInputDocument();
-	            	doc.addField(ImagePaneFields.IMAGE_PANE_KEY, imagepane_key);
-	            	doc.addField(IndexConstants.UNIQUE_KEY, ""+imagepane_key);
-	            	doc.addField(IndexConstants.IMAGE_ID, imageID);
-	            	doc.addField(GxdResultFields.ASSAY_MGIID,assayID);
+	            	Map<String, Object> doc = new HashMap<>();
+	            	doc.put(ImagePaneFields.IMAGE_PANE_KEY, imagepane_key);
+	            	doc.put(IndexConstants.UNIQUE_KEY, ""+imagepane_key);
+	            	doc.put(IndexConstants.IMAGE_ID, imageID);
+	            	doc.put(GxdResultFields.ASSAY_MGIID,assayID);
 	            	
-	            	doc.addField(ImagePaneFields.IMAGE_PIXELDBID, rs.getString("pixeldb_numeric_id"));
+	            	doc.put(ImagePaneFields.IMAGE_PIXELDBID, rs.getString("pixeldb_numeric_id"));
 	            	String paneLabel = rs.getString("pane_label")!=null ? rs.getString("pane_label") : "";
-	            	doc.addField(ImagePaneFields.IMAGE_LABEL, rs.getString("figure_label")+paneLabel);
+	            	doc.put(ImagePaneFields.IMAGE_LABEL, rs.getString("figure_label")+paneLabel);
 	            	
-	            	doc.addField(ImagePaneFields.IMAGE_WIDTH, rs.getInt("image_width"));
-	            	doc.addField(ImagePaneFields.IMAGE_HEIGHT, rs.getInt("image_height"));
-	            	doc.addField(ImagePaneFields.PANE_WIDTH, rs.getInt("width"));
-	            	doc.addField(ImagePaneFields.PANE_HEIGHT, rs.getInt("height"));
-	            	doc.addField(ImagePaneFields.PANE_X, rs.getInt("x"));
-	            	doc.addField(ImagePaneFields.PANE_Y, rs.getInt("y"));
+	            	doc.put(ImagePaneFields.IMAGE_WIDTH, rs.getInt("image_width"));
+	            	doc.put(ImagePaneFields.IMAGE_HEIGHT, rs.getInt("image_height"));
+	            	doc.put(ImagePaneFields.PANE_WIDTH, rs.getInt("width"));
+	            	doc.put(ImagePaneFields.PANE_HEIGHT, rs.getInt("height"));
+	            	doc.put(ImagePaneFields.PANE_X, rs.getInt("x"));
+	            	doc.put(ImagePaneFields.PANE_Y, rs.getInt("y"));
 	            	
 	            	// add the sort fields
-	            	doc.addField(ImagePaneFields.BY_ASSAY_TYPE, rs.getInt("by_assay_type"));
-	            	doc.addField(ImagePaneFields.BY_MARKER, rs.getInt("by_marker"));
-	            	doc.addField(ImagePaneFields.BY_HYBRIDIZATION_ASC, rs.getInt("by_hybridization_asc"));
-	            	doc.addField(ImagePaneFields.BY_HYBRIDIZATION_DESC, rs.getInt("by_hybridization_desc"));
+	            	doc.put(ImagePaneFields.BY_ASSAY_TYPE, rs.getInt("by_assay_type"));
+	            	doc.put(ImagePaneFields.BY_MARKER, rs.getInt("by_marker"));
+	            	doc.put(ImagePaneFields.BY_HYBRIDIZATION_ASC, rs.getInt("by_hybridization_asc"));
+	            	doc.put(ImagePaneFields.BY_HYBRIDIZATION_DESC, rs.getInt("by_hybridization_desc"));
 
 	            	//get results
 	            	// if this lookup fails, then there is probably a data inconsistency
@@ -218,7 +221,7 @@ public class GxdImagePaneIndexer extends Indexer
 	            	
 	            	for(Integer result_key : expressionResultKeys)
 	            	{
-	            		doc.addField(GxdResultFields.RESULT_KEY,result_key);
+	            		doc.put(GxdResultFields.RESULT_KEY,result_key);
 	            	}
 	            	
 	            	if(imagePaneSortedMetaMap.containsKey(imagepane_key))
@@ -226,7 +229,7 @@ public class GxdImagePaneIndexer extends Indexer
 	            		for(GxdImageMeta imageMeta : imagePaneSortedMetaMap.get(imagepane_key))
 	            		{
 	            			// save image meta data as JSON
-	            			doc.addField(ImagePaneFields.IMAGE_META, objectMapper.writeValueAsString(imageMeta));
+	            			doc.put(ImagePaneFields.IMAGE_META, objectMapper.writeValueAsString(imageMeta));
 	            		}
 	            	
 	            	}
@@ -242,7 +245,7 @@ public class GxdImagePaneIndexer extends Indexer
 	                    {
 	                    	logger.info("time to call writeDocs() "+stopTime());
 	                    }
-	                    docs = new ArrayList<SolrInputDocument>();
+	                    docs = new ArrayList<>();;
 
 	                }
 	            }
@@ -298,5 +301,134 @@ public class GxdImagePaneIndexer extends Indexer
 		}
     	
     }
+
+	@Override
+	protected String getIndexMappingJson() {
+		String mappingJson = """
+		{
+		  "settings": {
+		    "number_of_shards": 4,
+		    "number_of_replicas": 0,
+		    "refresh_interval": "10s",
+		    "analysis": {
+		      "analyzer": {
+		        "ancestor_path_index": {
+		          "type": "custom",
+		          "tokenizer": "keyword"
+		        },
+		        "ancestor_path_query": {
+		          "type": "custom",
+		          "tokenizer": "path_hierarchy"
+		        },
+		        "descendent_path_index": {
+		          "type": "custom",
+		          "tokenizer": "path_hierarchy"
+		        },
+		        "descendent_path_query": {
+		          "type": "custom",
+		          "tokenizer": "keyword"
+		        },
+		        "lowercase_keyword": {
+		          "type": "custom",
+		          "tokenizer": "keyword",
+		          "filter": ["lowercase"]
+		        },
+		        "phonetic_en_analyzer": {
+		          "type": "custom",
+		          "tokenizer": "standard",
+		          "filter": ["double_metaphone"]
+		        },
+		        "text_ws_analyzer": {
+		          "type": "custom",
+		          "tokenizer": "whitespace"
+		        },
+		        "text_email_url_analyzer": {
+		          "type": "custom",
+		          "tokenizer": "uax_url_email"
+		        }
+		      },
+		      "tokenizer": {
+		        "path_hierarchy": {
+		          "type": "path_hierarchy",
+		          "delimiter": "/"
+		        }
+		      },
+		      "filter": {
+		        "double_metaphone": {
+		          "type": "phonetic",
+		          "encoder": "double_metaphone",
+		          "replace": false
+		        }
+		      }
+		    }
+		  },
+		  "mappings": {
+		    "properties": {
+		      "uniqueKey": { "type": "keyword" },
+		      "imagePaneKey": { "type": "integer" },
+		      "resultKey": { "type": "keyword" },
+		      "imageID": { "type": "keyword" },
+		
+		      "imageLabel": { "type": "keyword", "index": false },
+		      "pixeldbID": { "type": "keyword", "index": false },
+		      "paneWidth": { "type": "integer", "index": false },
+		      "paneHeight": { "type": "integer", "index": false },
+		      "paneX": { "type": "integer", "index": false },
+		      "paneY": { "type": "integer", "index": false },
+		      "imageWidth": { "type": "integer", "index": false },
+		      "imageHeight": { "type": "integer", "index": false },
+		
+		      "metaData": { "type": "keyword", "index": false },
+		      "assayMgiid": { "type": "keyword", "index": false },
+		      "specimenLabel": { "type": "keyword", "index": false },
+		
+		      "byAssayType": { "type": "integer" },
+		      "byMarker": { "type": "integer" },
+		      "byHybridizationAsc": { "type": "integer" },
+		      "byHybridizationDesc": { "type": "integer" },
+		
+		      "_version_": { "type": "long" },
+		
+		      "ancestor_path": { 
+		        "type": "text",
+		        "analyzer": "ancestor_path_index",
+		        "search_analyzer": "ancestor_path_query"
+		      },
+		      "descendent_path": { 
+		        "type": "text",
+		        "analyzer": "descendent_path_index",
+		        "search_analyzer": "descendent_path_query"
+		      },
+		      "lowercase": { "type": "text", "analyzer": "lowercase_keyword" },
+		      "phonetic_en": { "type": "text", "analyzer": "phonetic_en_analyzer" },
+		
+		      "pdate": { "type": "date" },
+		      "pdates": { "type": "date" },
+		      "pdouble": { "type": "double" },
+		      "pdoubles": { "type": "double" },
+		      "pfloat": { "type": "float" },
+		      "pfloats": { "type": "float" },
+		      "pint": { "type": "integer" },
+		      "pints": { "type": "integer" },
+		      "plong": { "type": "long" },
+		      "plongs": { "type": "long" },
+		
+		      "boolean": { "type": "boolean" },
+		      "booleans": { "type": "boolean" },
+		
+		      "string": { "type": "keyword" },
+		      "strings": { "type": "keyword" },
+		
+		      "location": { "type": "geo_point" },
+		      "location_rpt": { "type": "geo_shape" },
+		
+		      "sint": { "type": "integer" }
+		    }
+		  }
+		}
+
+		""";
+		return mappingJson;
+	}
     
 }
