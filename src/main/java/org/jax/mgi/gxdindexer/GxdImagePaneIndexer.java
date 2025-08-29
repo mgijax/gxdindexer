@@ -17,11 +17,6 @@ import org.jax.mgi.shr.jsonmodel.GxdImageMeta;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import co.elastic.clients.elasticsearch._types.mapping.IntegerNumberProperty;
-import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty;
-import co.elastic.clients.elasticsearch._types.mapping.LongNumberProperty;
-import co.elastic.clients.elasticsearch._types.mapping.Property;
-
 /**
  * GxdImagePaneIndexer
  * @author kstone

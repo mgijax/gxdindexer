@@ -8,11 +8,6 @@ import java.util.Map;
 
 import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
 
-import co.elastic.clients.elasticsearch._types.mapping.IntegerNumberProperty;
-import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty;
-import co.elastic.clients.elasticsearch._types.mapping.LongNumberProperty;
-import co.elastic.clients.elasticsearch._types.mapping.Property;
-
 /**
  * GxdConsolidatedSampleIndexer This index is intended to be a lookup for
  * consolidated samples for RNA-Seq data

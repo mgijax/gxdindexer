@@ -19,8 +19,6 @@ import org.jax.mgi.shr.fe.IndexConstants;
 import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
 import org.jax.mgi.shr.fe.query.SolrLocationTranslator;
 
-import co.elastic.clients.elasticsearch._types.mapping.Property;
-
 /**
  * GxdResultHasImageIndexer
  *
