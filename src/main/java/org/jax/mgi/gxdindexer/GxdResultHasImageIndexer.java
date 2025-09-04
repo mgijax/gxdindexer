@@ -1206,7 +1206,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		      "endCoord": {"type": "keyword"},
 		      "strand": {"type": "keyword"},
 		      "mc": {
-		        "type": "geo_point"
+		        "type": "geo_point", "ignore_malformed": true
 		      },
 		      "byMrkSymbol": {"type": "integer"},
 		      "byLocation": {"type": "integer"},

@@ -1732,7 +1732,7 @@ public class GxdResultIndexer extends Indexer {
 		      "startCoord": { "type": "keyword", "index": false },
 		      "endCoord": { "type": "keyword", "index": false },
 		      "strand": { "type": "keyword", "index": false },
-		      "mc": { "type": "geo_point" },
+		      "mc": { "type": "geo_point", "ignore_malformed": true, "index": false },
 		      "ensemblGeneModelID": { "type": "keyword", "index": false },
 		
 		      "byMrkSymbol": { "type": "integer" },
