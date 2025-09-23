@@ -216,7 +216,7 @@ public class GxdImagePaneIndexer extends Indexer
 	            	
 	            	for(Integer result_key : expressionResultKeys)
 	            	{
-	            		doc.put(GxdResultFields.RESULT_KEY,result_key);
+	            		doc.put(GxdResultFields.RESULT_KEY,result_key+ "");
 	            	}
 	            	
 	            	if(imagePaneSortedMetaMap.containsKey(imagepane_key))
@@ -302,7 +302,8 @@ public class GxdImagePaneIndexer extends Indexer
 		String mappingJson = """
 		{
 		  "settings": {
-		    "number_of_shards": 4,
+		    "index.mode": "lookup",
+		    "number_of_shards": 1,
 		    "number_of_replicas": 0,
 		    "refresh_interval": "10s",
 		    "analysis": {
