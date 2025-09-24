@@ -214,19 +214,23 @@ public class GxdImagePaneIndexer extends Indexer
 	            		continue;
 	            	}
 	            	
+	            	List<String> resultKeys = new ArrayList<String>();
 	            	for(Integer result_key : expressionResultKeys)
 	            	{
-	            		doc.put(GxdResultFields.RESULT_KEY,result_key+ "");
+	            		resultKeys.add(result_key+ "");
 	            	}
+            		doc.put(GxdResultFields.RESULT_KEY, resultKeys);
+	            	
 	            	
 	            	if(imagePaneSortedMetaMap.containsKey(imagepane_key))
 	            	{
+	            		List<String> metas = new ArrayList<String>();
 	            		for(GxdImageMeta imageMeta : imagePaneSortedMetaMap.get(imagepane_key))
 	            		{
 	            			// save image meta data as JSON
-	            			doc.put(ImagePaneFields.IMAGE_META, objectMapper.writeValueAsString(imageMeta));
+	            			metas.add(objectMapper.writeValueAsString(imageMeta));
 	            		}
-	            	
+	            		doc.put(ImagePaneFields.IMAGE_META, metas);
 	            	}
 	            	
 		                

@@ -1059,64 +1059,47 @@ public class GxdResultIndexer extends Indexer {
 				doc.put(GxdResultFields.PATTERN, rs.getString("pattern"));
 
 				// add fields for filtering by marker-associated vocabularies
-				for (String mpTerm : markerMpCache.getTerms(markerKey)) {
-					doc.put(GxdResultFields.MP_HEADERS, mpTerm);
-				}
+				doc.put(GxdResultFields.MP_HEADERS, markerMpCache.getTerms(markerKey));
 
 				addGoTerms(doc, markerKey);
 
-				for (String doTerm : markerDoCache.getTerms(markerKey)) {
-					doc.put(GxdResultFields.DO_HEADERS, doTerm);
-				}
-
-				for (String coTerm : resultCoCache.getTerms(result_key)) {
-					doc.put(GxdResultFields.CO_HEADERS, coTerm);
-				}
-
-				for (String featureType : markerTypeCache.getTerms(markerKey)) {
-					doc.put(GxdResultFields.FEATURE_TYPES, featureType);
-				}
+				doc.put(GxdResultFields.DO_HEADERS, markerDoCache.getTerms(markerKey));
+				doc.put(GxdResultFields.CO_HEADERS, resultCoCache.getTerms(result_key));
+				doc.put(GxdResultFields.FEATURE_TYPES, markerTypeCache.getTerms(markerKey));
 
 				// multi values
 
 				if (systemMap.containsKey(result_key)) {
-					for (String system : systemMap.get(result_key)) {
-						doc.put(GxdResultFields.ANATOMICAL_SYSTEM, system);
-					}
+					doc.put(GxdResultFields.ANATOMICAL_SYSTEM, systemMap.get(result_key));
 					systemMap.remove(result_key);
 				}
 
 				if (markerNomenMap.containsKey(markerKey)) {
-					for (String nomen : markerNomenMap.get(markerKey)) {
-						doc.put(GxdResultFields.NOMENCLATURE, nomen);
-					}
+					doc.put(GxdResultFields.NOMENCLATURE, markerNomenMap.get(markerKey));
 				}
 
 				String genotype_key = rs.getString("genotype_key");
 				if (mutatedInMap.containsKey(genotype_key)) {
+					List<String> mutatedIns = new ArrayList<String>();
 					Map<String, Map<String, String>> gMap = mutatedInMap.get(genotype_key);
 					for (String genotype_marker_key : gMap.keySet()) {
-						doc.put(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("symbol"));
-						doc.put(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("name"));
+						mutatedIns.add(gMap.get(genotype_marker_key).get("symbol"));
+						mutatedIns.add(gMap.get(genotype_marker_key).get("name"));
 
 						// get any synonyms
 						if (markerNomenMap.containsKey(genotype_marker_key)) {
-							for (String synonym : markerNomenMap.get(genotype_marker_key)) {
-								doc.put(GxdResultFields.MUTATED_IN, synonym);
-							}
+							mutatedIns.addAll(markerNomenMap.get(genotype_marker_key));
 						}
 					}
+					doc.put(GxdResultFields.MUTATED_IN, mutatedIns);
 				}
 
 				if (mutatedInAlleleMap.containsKey(genotype_key)) {
 					List<String> alleleIds = mutatedInAlleleMap.get(genotype_key);
-
-					for (String alleleId : alleleIds) {
-						doc.put(GxdResultFields.ALLELE_ID, alleleId);
-					}
-
+					doc.put(GxdResultFields.ALLELE_ID, alleleIds);
 				}
 
+				List<String> annotations = new ArrayList<String>();
 				if (markerVocabMap.containsKey(markerKey)) {
 					Set<String> uniqueAnnotationIDs = new HashSet<String>();
 
@@ -1128,20 +1111,16 @@ public class GxdResultIndexer extends Indexer {
 							}
 						}
 					}
-
-					for (String annotationID : uniqueAnnotationIDs) {
-						doc.put(GxdResultFields.ANNOTATION, annotationID);
-					}
+					annotations.addAll(uniqueAnnotationIDs);
 				}
 
 				String cellTypeID = rs.getString("cell_type_id");
 				if (vocabAncestorMap.containsKey(cellTypeID)) {
 					// add this DAG node, and all it's parents (up to 'cell')
-					doc.put(GxdResultFields.ANNOTATION, cellTypeID);
-					for (String ancestorId : vocabAncestorMap.get(cellTypeID)) {
-						doc.put(GxdResultFields.ANNOTATION, ancestorId);
-					}
+					annotations.add(cellTypeID);
+					annotations.addAll(vocabAncestorMap.get(cellTypeID));
 				} 
+				doc.put(GxdResultFields.ANNOTATION, annotations);
 
 				if (imageMap.containsKey(result_key)) {
 					if (has_image.equals("1")) {
@@ -1179,12 +1158,8 @@ public class GxdResultIndexer extends Indexer {
 
 					// only add unique structures (for best solr indexing
 					// performance)
-					for (String ancestorId : ancestorIDs) {
-						doc.put(GxdResultFields.STRUCTURE_ID, ancestorId);
-					}
-					for (String ancestorStructure : ancestorStructures) {
-						doc.put(GxdResultFields.STRUCTURE_ANCESTORS, ancestorStructure);
-					}
+					doc.put(GxdResultFields.STRUCTURE_ID, ancestorIDs);
+					doc.put(GxdResultFields.STRUCTURE_ANCESTORS, ancestorStructures);
 				}
 				
 				// add the id for this exact structure
@@ -1200,10 +1175,7 @@ public class GxdResultIndexer extends Indexer {
 						structureKeys.add(structureAncestorKey);
 					}
 				}
-
-				for (String structKey : structureKeys) {
-					doc.put(GxdResultFields.STRUCTURE_KEY, structKey);
-				}
+				doc.put(GxdResultFields.STRUCTURE_KEY, structureKeys);
 
 				// result sorts
 				doc.put(GxdResultFields.R_BY_ASSAY_TYPE, rs.getString("r_by_assay_type"));
@@ -1483,19 +1455,12 @@ public class GxdResultIndexer extends Indexer {
 				doc.put(GxdResultFields.MARKER_TYPE, markerSubtype.get(markerKey));
 
 				// add fields for filtering by marker-associated vocabularies
-				for (String mpTerm : markerMpCache.getTerms(markerKey)) {
-					doc.put(GxdResultFields.MP_HEADERS, mpTerm);
-				}
+				doc.put(GxdResultFields.MP_HEADERS, markerMpCache.getTerms(markerKey));
 				
 				addGoTerms(doc, markerKey);
 
-				for (String doTerm : markerDoCache.getTerms(markerKey)) {
-					doc.put(GxdResultFields.DO_HEADERS, doTerm);
-				}
-
-				for (String featureType : markerTypeCache.getTerms(markerKey)) {
-					doc.put(GxdResultFields.FEATURE_TYPES, featureType);
-				}
+				doc.put(GxdResultFields.DO_HEADERS, markerDoCache.getTerms(markerKey));
+				doc.put(GxdResultFields.FEATURE_TYPES, markerTypeCache.getTerms(markerKey));
 
 				// location stuff
 				doc.put(GxdResultFields.CHROMOSOME, chr);
@@ -1535,41 +1500,33 @@ public class GxdResultIndexer extends Indexer {
 				// multi values
 
 				if (systemMap.containsKey(result_key)) {
-					for (String system : systemMap.get(result_key)) {
-						doc.put(GxdResultFields.ANATOMICAL_SYSTEM, system);
-					}
+					doc.put(GxdResultFields.ANATOMICAL_SYSTEM, systemMap.get(result_key));
 					systemMap.remove(result_key);
 				}
 
 				if (markerNomenMap.containsKey(markerKey)) {
-					for (String nomen : markerNomenMap.get(markerKey)) {
-						doc.put(GxdResultFields.NOMENCLATURE, nomen);
-					}
+					doc.put(GxdResultFields.NOMENCLATURE, markerNomenMap.get(markerKey));
 				}
 
 				String genotype_key = rs.getString("genotype_key");
 				if (mutatedInMap.containsKey(genotype_key)) {
+					List<String> mutatedIns = new ArrayList<String>();
 					Map<String, Map<String, String>> gMap = mutatedInMap.get(genotype_key);
 					for (String genotype_marker_key : gMap.keySet()) {
-						doc.put(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("symbol"));
-						doc.put(GxdResultFields.MUTATED_IN, gMap.get(genotype_marker_key).get("name"));
+						mutatedIns.add(gMap.get(genotype_marker_key).get("symbol"));
+						mutatedIns.add(gMap.get(genotype_marker_key).get("name"));
 
 						// get any synonyms
 						if (markerNomenMap.containsKey(genotype_marker_key)) {
-							for (String synonym : markerNomenMap.get(genotype_marker_key)) {
-								doc.put(GxdResultFields.MUTATED_IN, synonym);
-							}
-						}
+							mutatedIns.addAll(markerNomenMap.get(genotype_marker_key));
+						}						
 					}
+					doc.put(GxdResultFields.MUTATED_IN, mutatedIns);
 				}
 
 				if (mutatedInAlleleMap.containsKey(genotype_key)) {
 					List<String> alleleIds = mutatedInAlleleMap.get(genotype_key);
-
-					for (String alleleId : alleleIds) {
-						doc.put(GxdResultFields.ALLELE_ID, alleleId);
-					}
-
+					doc.put(GxdResultFields.ALLELE_ID, alleleIds);
 				}
 
 				if (markerVocabMap.containsKey(markerKey)) {
@@ -1584,9 +1541,7 @@ public class GxdResultIndexer extends Indexer {
 						}
 					}
 
-					for (String annotationID : uniqueAnnotationIDs) {
-						doc.put(GxdResultFields.ANNOTATION, annotationID);
-					}
+					doc.put(GxdResultFields.ANNOTATION, uniqueAnnotationIDs);
 				}
 
 				String myEmapaID = emapaID.get(structureTermKey);
@@ -1615,12 +1570,8 @@ public class GxdResultIndexer extends Indexer {
 
 					// only add unique structures (for best solr indexing
 					// performance)
-					for (String ancestorId : ancestorIDs) {
-						doc.put(GxdResultFields.STRUCTURE_ID, ancestorId);
-					}
-					for (String ancestorStructure : ancestorStructures) {
-						doc.put(GxdResultFields.STRUCTURE_ANCESTORS, ancestorStructure);
-					}
+					doc.put(GxdResultFields.STRUCTURE_ID, ancestorIDs);
+					doc.put(GxdResultFields.STRUCTURE_ANCESTORS, ancestorStructures);
 				}
 				
 				// add the id for this exact structure
@@ -1637,9 +1588,7 @@ public class GxdResultIndexer extends Indexer {
 					}
 				}
 
-				for (String structKey : structureKeys) {
-					doc.put(GxdResultFields.STRUCTURE_KEY, structKey);
-				}
+				doc.put(GxdResultFields.STRUCTURE_KEY, structureKeys);
 
 				// result sorts
 				doc.put(GxdResultFields.R_BY_ASSAY_TYPE, Integer.toString(rs.getInt("r_by_assay_type")));
