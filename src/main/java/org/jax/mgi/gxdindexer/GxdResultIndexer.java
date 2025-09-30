@@ -1031,7 +1031,11 @@ public class GxdResultIndexer extends Indexer {
 				doc.put(GxdResultFields.CYTOBAND, cytoband.get(markerKey));
 				doc.put(GxdResultFields.STRAND, strand.get(markerKey));
 				if (!spatialString.equals("")) {
-					doc.put(GxdResultFields.MOUSE_COORDINATE, spatialString);
+					String[] parts = spatialString.split("\\s+");
+					Map<String, Object> geneticLocation = new HashMap<>();
+					geneticLocation.put("type", "point");
+					geneticLocation.put("coordinates", Arrays.asList(Long.parseLong(parts[0]), Long.parseLong(parts[1])));
+					doc.put(GxdResultFields.MOUSE_COORDINATE, geneticLocation);
 				}
 
 				if (cm_offset == null || cm_offset.equals("-1"))
@@ -1469,7 +1473,11 @@ public class GxdResultIndexer extends Indexer {
 				doc.put(GxdResultFields.CYTOBAND, cytoband.get(markerKey));
 				doc.put(GxdResultFields.STRAND, strand.get(markerKey));
 				if (!spatialString.equals("")) {
-					doc.put(GxdResultFields.MOUSE_COORDINATE, spatialString);
+					String[] parts = spatialString.split("\\s+");
+					Map<String, Object> geneticLocation = new HashMap<>();
+					geneticLocation.put("type", "point");
+					geneticLocation.put("coordinates", Arrays.asList(Long.parseLong(parts[0]), Long.parseLong(parts[1])));
+					doc.put(GxdResultFields.MOUSE_COORDINATE, geneticLocation);
 				}
 
 				if (cm_offset == null || cm_offset.equals("-1"))
@@ -1638,32 +1646,38 @@ public class GxdResultIndexer extends Indexer {
 		    "number_of_shards": 4,
 		    "number_of_replicas": 0,
 		    "refresh_interval": "10s",
-		    "analysis": {
-		      "filter": {
-		        "custom_english_stop": {
-		          "type": "stop",
-		          "stopwords": ["and", "from", "of", "or", "the", "their", "to"]
-		        }
-		      },
-		      "analyzer": {
-		        "lowercase_keyword": {
-		          "tokenizer": "keyword",
-		          "filter": ["lowercase"]
-		        },
-		        "whitespace_lower": {
-		          "tokenizer": "whitespace",
-		          "filter": ["lowercase"]
-		        },
-		        "text_index_analyzer": {
-		          "tokenizer": "whitespace",
-		          "filter": ["lowercase", "custom_english_stop"]
-		        },
-		        "text_query_analyzer": {
-		          "tokenizer": "whitespace",
-		          "filter": ["lowercase", "custom_english_stop"]
-		        }
-		      }
-		    }
+			"analysis": {
+			  "filter": {
+			    "custom_english_stop": {
+			      "type": "stop",
+			      "stopwords": ["and", "from", "of", "or", "the", "their", "to"]
+			    }
+			  },
+			  "analyzer": {
+			    "lowercase_keyword": {
+			      "tokenizer": "keyword",
+			      "filter": ["lowercase"]
+			    },
+			    "whitespace_lower": {
+			      "tokenizer": "whitespace",
+			      "filter": ["lowercase"]
+			    },
+			    "text_index_analyzer": {
+			      "tokenizer": "whitespace",
+			      "filter": ["lowercase", "custom_english_stop"]
+			    },
+			    "text_query_analyzer": {
+			      "tokenizer": "whitespace",
+			      "filter": ["lowercase", "custom_english_stop"]
+			    }
+			  },
+			  "normalizer": {
+			    "lowercase_normalizer": {
+			      "type": "custom",
+			      "filter": ["lowercase"]
+			    }
+			  }
+			}
 		  },
 		  "mappings": {
 		    "properties": {
@@ -1681,7 +1695,7 @@ public class GxdResultIndexer extends Indexer {
 		      "startCoord": { "type": "keyword", "index": false },
 		      "endCoord": { "type": "keyword", "index": false },
 		      "strand": { "type": "keyword", "index": false },
-		      "mc": { "type": "geo_point", "ignore_malformed": true, "index": false },
+		      "mc": {"type": "point"},
 		      "ensemblGeneModelID": { "type": "keyword", "index": false },
 		
 		      "byMrkSymbol": { "type": "integer" },

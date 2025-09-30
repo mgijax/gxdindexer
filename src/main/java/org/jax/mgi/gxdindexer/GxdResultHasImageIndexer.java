@@ -898,7 +898,11 @@ public class GxdResultHasImageIndexer extends Indexer {
 				doc.put(GxdResultFields.CYTOBAND, cytoband.get(markerKey));
 				doc.put(GxdResultFields.STRAND, strand.get(markerKey));
 				if (!spatialString.equals("")) {
-					doc.put(GxdResultFields.MOUSE_COORDINATE, spatialString);
+					String[] parts = spatialString.split("\\s+");
+					Map<String, Object> geneticLocation = new HashMap<>();
+					geneticLocation.put("type", "point");
+					geneticLocation.put("coordinates", Arrays.asList(Long.parseLong(parts[0]), Long.parseLong(parts[1])));
+					doc.put(GxdResultFields.MOUSE_COORDINATE, geneticLocation);
 				}
 
 				if (cm_offset == null || cm_offset.equals("-1"))
@@ -1144,6 +1148,12 @@ public class GxdResultHasImageIndexer extends Indexer {
 		          "tokenizer": "whitespace",
 		          "filter": ["lowercase_filter", "unique"]
 		        }
+		      },
+		      "normalizer": {
+		        "lowercase_normalizer": {
+		          "type": "custom",
+		          "filter": ["lowercase_filter"]
+		        }
 		      }
 		    }
 		  },
@@ -1177,9 +1187,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		      "startCoord": {"type": "keyword"},
 		      "endCoord": {"type": "keyword"},
 		      "strand": {"type": "keyword"},
-		      "mc": {
-		        "type": "geo_point", "ignore_malformed": true
-		      },
+		      "mc": {"type": "point"},
 		      "byMrkSymbol": {"type": "integer"},
 		      "byLocation": {"type": "integer"},
 		      "assayKey": {"type": "keyword"},
