@@ -1121,8 +1121,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		String mappingJson = """
 		{
 		  "settings": {
-		    "index.mode": "lookup",		  
-		    "number_of_shards": 1,
+		    "number_of_shards": 4,
 		    "number_of_replicas": 0,
 		    "refresh_interval": "10s",
 		    "analysis": {
