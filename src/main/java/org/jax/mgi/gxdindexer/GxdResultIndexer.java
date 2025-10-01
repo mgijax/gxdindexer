@@ -1020,8 +1020,10 @@ public class GxdResultIndexer extends Indexer {
 				}
 
 				// also add symbol and current name to searchable nomenclature
-				doc.put(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
-				doc.put(GxdResultFields.NOMENCLATURE, markerName.get(markerKey));
+				List<String> nomonclature = new ArrayList<String>();
+				nomonclature.add(markerSymbol.get(markerKey));
+				nomonclature.add(markerName.get(markerKey));
+				
 				doc.put(GxdResultFields.MARKER_TYPE, markerSubtype.get(markerKey));
 
 				// location stuff
@@ -1034,7 +1036,7 @@ public class GxdResultIndexer extends Indexer {
 					String[] parts = spatialString.split("\\s+");
 					Map<String, Object> geneticLocation = new HashMap<>();
 					geneticLocation.put("type", "point");
-					geneticLocation.put("coordinates", Arrays.asList(Long.parseLong(parts[0]), Long.parseLong(parts[1])));
+					geneticLocation.put("coordinates", Arrays.asList(Double.parseDouble(parts[0]), Double.parseDouble(parts[1])));
 					doc.put(GxdResultFields.MOUSE_COORDINATE, geneticLocation);
 				}
 
@@ -1079,8 +1081,9 @@ public class GxdResultIndexer extends Indexer {
 				}
 
 				if (markerNomenMap.containsKey(markerKey)) {
-					doc.put(GxdResultFields.NOMENCLATURE, markerNomenMap.get(markerKey));
+					nomonclature.add(markerKey);
 				}
+				doc.put(GxdResultFields.NOMENCLATURE, nomonclature);
 
 				String genotype_key = rs.getString("genotype_key");
 				if (mutatedInMap.containsKey(genotype_key)) {
@@ -1454,8 +1457,10 @@ public class GxdResultIndexer extends Indexer {
 				}
 
 				// also add symbol and current name to searchable nomenclature
-				doc.put(GxdResultFields.NOMENCLATURE, markerSymbol.get(markerKey));
-				doc.put(GxdResultFields.NOMENCLATURE, markerName.get(markerKey));
+				List<String> nomonclature = new ArrayList<String>();
+				nomonclature.add(markerSymbol.get(markerKey));
+				nomonclature.add(markerName.get(markerKey));				
+
 				doc.put(GxdResultFields.MARKER_TYPE, markerSubtype.get(markerKey));
 
 				// add fields for filtering by marker-associated vocabularies
@@ -1476,7 +1481,7 @@ public class GxdResultIndexer extends Indexer {
 					String[] parts = spatialString.split("\\s+");
 					Map<String, Object> geneticLocation = new HashMap<>();
 					geneticLocation.put("type", "point");
-					geneticLocation.put("coordinates", Arrays.asList(Long.parseLong(parts[0]), Long.parseLong(parts[1])));
+					geneticLocation.put("coordinates", Arrays.asList(Double.parseDouble(parts[0]), Double.parseDouble(parts[1])));
 					doc.put(GxdResultFields.MOUSE_COORDINATE, geneticLocation);
 				}
 
@@ -1513,8 +1518,9 @@ public class GxdResultIndexer extends Indexer {
 				}
 
 				if (markerNomenMap.containsKey(markerKey)) {
-					doc.put(GxdResultFields.NOMENCLATURE, markerNomenMap.get(markerKey));
+					nomonclature.add(markerKey);
 				}
+				doc.put(GxdResultFields.NOMENCLATURE, nomonclature);				
 
 				String genotype_key = rs.getString("genotype_key");
 				if (mutatedInMap.containsKey(genotype_key)) {
