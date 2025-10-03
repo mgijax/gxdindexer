@@ -17,6 +17,7 @@ import org.jax.mgi.gxdindexer.shr.MarkerTypeCache;
 import org.jax.mgi.gxdindexer.shr.ResultCOCache;
 import org.jax.mgi.shr.fe.IndexConstants;
 import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
+import org.jax.mgi.shr.fe.indexconstants.ImagePaneFields;
 import org.jax.mgi.shr.fe.query.SolrLocationTranslator;
 
 /**
@@ -650,6 +651,25 @@ public class GxdResultHasImageIndexer extends Indexer {
 		rs.close();
 		return structureAncestorMap;
 	}
+	
+	private Map<String, List<Integer>> getResultKeyToImagePanelKeyMap() throws Exception {
+		String imageQuery = "select ei.result_key,ei.imagepane_key "
+				+ "from expression_result_to_imagepane ei";
+		Map<String, List<Integer>> imagePaneResultMap = new HashMap<String, List<Integer>>();
+		logger.info("building map of result keys to image pane keys ");
+
+		ResultSet rs = ex.executeProto(imageQuery);
+		while (rs.next()) {
+			String resultKey = rs.getString("result_key");
+			int ipKey = rs.getInt("imagepane_key");
+			if (!imagePaneResultMap.containsKey(resultKey)) {
+				imagePaneResultMap.put(resultKey, new ArrayList<Integer>());
+			}
+			imagePaneResultMap.get(resultKey).add(ipKey);
+		}
+		logger.info("done building map of image pane keys to result keys");
+		return imagePaneResultMap;
+	}
 
 	/*
 	 * -------------------- main indexing method --------------------
@@ -717,6 +737,9 @@ public class GxdResultHasImageIndexer extends Indexer {
 		// get List of synonyms for each structure
 		Map<String, List<String>> structureSynonymMap = getMap(
 				SharedQueries.GXD_EMAP_SYNONYMS_QUERY, "structure_id", "synonym", "structure", "synonyms");
+		
+		// get List of image panel key
+		Map<String, List<Integer>> resultKeyToImagePanelKeyMap = getResultKeyToImagePanelKeyMap();
 
 		// -------------------------------------------------------------------
 		// Finally finished gathering mappings, time for the main body of work
@@ -725,7 +748,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		identifySystemIDs();
 		indexClassicalData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
 			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
-			structureSynonymMap);
+			structureSynonymMap, resultKeyToImagePanelKeyMap);
 		this.setSkipOptimizer(true);
 	}
 		
@@ -752,7 +775,8 @@ public class GxdResultHasImageIndexer extends Indexer {
 			Map<String, Set<String>> vocabAncestorMap, 
 			Map<String, List<String>> structureAncestorIdMap,
 			Map<String, List<String>> structureAncestorKeyMap,
-			Map<String, List<String>> structureSynonymMap) throws Exception {
+			Map<String, List<String>> structureSynonymMap,
+			Map<String, List<Integer>> resultKeyToImagePanelKeyMap) throws Exception {
 
 		// find the maximum result key, so we have an upper bound when
 		// stepping through chunks of results
@@ -1066,6 +1090,10 @@ public class GxdResultHasImageIndexer extends Indexer {
 
 				String geneMatrixGroup = joiner(myEmapaID, isExpressed, markerKey, theilerStage);
 				doc.put(GxdResultFields.GENE_MATRIX_GROUP, geneMatrixGroup);
+				
+				if ( resultKeyToImagePanelKeyMap.containsKey(result_key) ) {
+					doc.put(ImagePaneFields.IMAGE_PANE_KEY, resultKeyToImagePanelKeyMap.get(result_key));
+				}
 
 				docs.add(doc);
 				if (docs.size() >= solrCacheSize) {
@@ -1251,6 +1279,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		      "doHeaders": {"type": "keyword"},
 		      "coHeaders": {"type": "keyword"},
 		      "featureTypes": {"type": "keyword"},
+		      "imagePaneKey": {"type": "integer"},
 		      "_version_": {"type": "long"}
 		    }
 		  }
