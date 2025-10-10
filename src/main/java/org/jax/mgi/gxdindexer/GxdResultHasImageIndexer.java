@@ -1152,6 +1152,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		    "number_of_shards": 4,
 		    "number_of_replicas": 0,
 		    "refresh_interval": "10s",
+		    "max_result_window": 100000,		    
 		    "analysis": {
 		      "filter": {
 		        "english_stop": {
