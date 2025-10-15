@@ -406,7 +406,8 @@ public class GxdProfileMarkerIndexer extends Indexer
 		String mappingJson = """
 		{
 		  "settings": {
-		    "number_of_shards": 4,
+		    "index.mode": "lookup",
+		    "number_of_shards": 1,
 		    "number_of_replicas": 0,
 		    "refresh_interval": "10s",
 		    "analysis": {
