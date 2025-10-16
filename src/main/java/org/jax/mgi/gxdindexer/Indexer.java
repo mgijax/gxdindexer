@@ -16,6 +16,7 @@ import java.util.Set;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.jax.mgi.gxdindexer.shr.SQLExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +54,8 @@ public abstract class Indexer implements Runnable {
 	protected Runtime runtime = Runtime.getRuntime();
 	public boolean indexPassed = true;
 	public boolean skipOptimizer = false;
+	private boolean doNotWriteDocToES = false;   // for collect data only, not write data to ES
+	public Map<String, List<Map<String, Object>>> docs = new HashMap<String, List<Map<String, Object>>>();	
 
 	// Variables for handling threads
 	private List<Thread> currentThreads =new ArrayList<Thread>();
@@ -82,10 +85,22 @@ public abstract class Indexer implements Runnable {
         String esUrl = props.getProperty("index.url"); // example: http://localhost:9200
 
         logger.info("Connecting to Elasticsearch: " + esUrl);
-
-        RestClient restClient = RestClient.builder(HttpHost.create(esUrl)).build();
-        ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
-        client = new ElasticsearchClient(transport);
+        
+        RestClientBuilder builder = RestClient.builder(
+        		HttpHost.create(esUrl))
+        	    .setRequestConfigCallback(requestConfigBuilder -> 
+        	        requestConfigBuilder
+        	            .setConnectTimeout(60_000)      // time to establish connection
+        	            .setSocketTimeout(120_000)      // time waiting for data (was 30_000)
+        	            .setConnectionRequestTimeout(60_000)
+        	    );
+    	ElasticsearchTransport transport = new RestClientTransport(builder.build(), new JacksonJsonpMapper());
+    	client = new ElasticsearchClient(transport);
+        	
+//
+//        RestClient restClient = RestClient.builder(HttpHost.create(esUrl)).build();
+//        ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
+//        client = new ElasticsearchClient(transport);
 
         // clear existing index
 //        try {
@@ -151,6 +166,9 @@ public abstract class Indexer implements Runnable {
 	}
 	
 	public void commit() {
+		if ( isDoNotWriteDocToES() ) {
+			return;
+		}
 		commit(true);
 	}
 	
@@ -253,6 +271,9 @@ public abstract class Indexer implements Runnable {
 	 */
 	
 	public void writeDocs(List<Map<String, Object>> docs) {
+		if ( isDoNotWriteDocToES() ) {
+			return;
+		}
         if (docs == null || docs.isEmpty()) return;
 
         List<BulkOperation> operations = new ArrayList<>();
@@ -489,5 +510,31 @@ public abstract class Indexer implements Runnable {
 		} catch (Exception e) {
 			logger.info("Delete index " + this.indexName + ": " + e.getMessage());
 		}
-    }	
+    }
+
+	public boolean isDoNotWriteDocToES() {
+		return doNotWriteDocToES;
+	}
+
+	public void setDoNotWriteDocToES(boolean doNotWriteDocToES) {
+		this.doNotWriteDocToES = doNotWriteDocToES;
+	}
+
+	public void addDoc(String key, Map<String, Object> doc) {
+		if ( !isDoNotWriteDocToES() ) {
+			return;
+		}
+		List<Map<String, Object>> list;
+		if ( docs.containsKey(key) ) {
+			list = docs.get(key);			
+		} else {
+			list = new ArrayList<Map<String, Object>>();
+			docs.put(key, list);
+		}
+		list.add(doc);
+	}
+	
+	public Map<String, List<Map<String, Object>>> getDocs() {
+		return docs;
+	}	
 }

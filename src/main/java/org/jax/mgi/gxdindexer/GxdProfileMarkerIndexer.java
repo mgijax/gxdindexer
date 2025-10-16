@@ -343,7 +343,11 @@ public class GxdProfileMarkerIndexer extends Indexer
 
 			// now build & handle solr documents (one per marker)
 			for (Integer markerKey : markerResults.keySet()) {
-				docs.add(buildSolrDoc(markerKey, markerIDs.get(markerKey), markerResults.get(markerKey)));
+				Map<String, Object> doc = buildSolrDoc(markerKey, markerIDs.get(markerKey), markerResults.get(markerKey));
+                if ( isDoNotWriteDocToES() ) {
+                	addDoc(markerIDs.get(markerKey), doc);
+                }
+				docs.add(doc);
 				if (docs.size() > cacheSize) {
                                         logger.info(" - writing " + docs.size() + " docs.");
 					writeDocs(docs);
