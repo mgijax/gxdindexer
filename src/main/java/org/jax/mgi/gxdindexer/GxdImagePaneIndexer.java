@@ -235,9 +235,7 @@ public class GxdImagePaneIndexer extends Indexer
 	            	
 		                
                     docs.add(doc);
-                    if ( isDoNotWriteDocToES() ) {
-                    	addDoc(imagepane_key+"", doc);
-                    }
+
 	                if (docs.size() > 1000) {
 	                    //logger.info("Adding a stack of the documents to Solr");
 	                	startTime();

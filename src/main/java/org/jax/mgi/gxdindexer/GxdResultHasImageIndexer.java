@@ -776,12 +776,6 @@ public class GxdResultHasImageIndexer extends Indexer {
 			Map<String, List<String>> structureAncestorKeyMap,
 			Map<String, List<String>> structureSynonymMap,
 			Map<String, List<Integer>> resultKeyToImagePanelKeyMap) throws Exception {
-
-		GxdImagePaneIndexer gxdImagePaneIndexer = new GxdImagePaneIndexer();
-		gxdImagePaneIndexer.setDoNotWriteDocToES(true);
-		gxdImagePaneIndexer.index();
-		Map<String, List<Map<String, Object>>> gxdImagePaneData = gxdImagePaneIndexer.getDocs();
-		gxdImagePaneIndexer = null;		
 		
 		// find the maximum result key, so we have an upper bound when
 		// stepping through chunks of results
@@ -1097,19 +1091,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 				doc.put(GxdResultFields.GENE_MATRIX_GROUP, geneMatrixGroup);
 				
 				if ( resultKeyToImagePanelKeyMap.containsKey(result_key) ) {
-					doc.put(ImagePaneFields.IMAGE_PANE_KEY, resultKeyToImagePanelKeyMap.get(result_key));
-					List<Map<String, Object>> imagePanes = new ArrayList<Map<String, Object>>();
-					for (Integer mkey: resultKeyToImagePanelKeyMap.get(result_key)) {
-						List<Map<String, Object>> gxdImagePanes = gxdImagePaneData.get(mkey + "");
-						if ( gxdImagePanes != null ) {
-							for ( Map<String, Object> gxdImagePane:  gxdImagePanes) {
-								if ( gxdImagePane != null) {
-									imagePanes.add(gxdImagePane);
-								}
-							}
-						}
-					}
-					doc.put("gxdImagePane", imagePanes);
+					doc.put("gxdImagePaneResultKey", result_key);
 				}
 
 				docs.add(doc);
@@ -1297,35 +1279,8 @@ public class GxdResultHasImageIndexer extends Indexer {
 		      "doHeaders": {"type": "keyword"},
 		      "coHeaders": {"type": "keyword"},
 		      "featureTypes": {"type": "keyword"},
-		      "imagePaneKey": {"type": "integer"},
-		      "_version_": {"type": "long"},
-		      "gxdImagePane": { 
-		        "type": "nested", 
-		        "properties": {
-				      "uniqueKey": { "type": "keyword" },
-				      "imagePaneKey": { "type": "integer" },
-				      "resultKey": { "type": "keyword" },
-				      "imageID": { "type": "keyword" },
-				
-				      "imageLabel": { "type": "keyword", "index": false },
-				      "pixeldbID": { "type": "keyword", "index": false },
-				      "paneWidth": { "type": "integer", "index": false },
-				      "paneHeight": { "type": "integer", "index": false },
-				      "paneX": { "type": "integer", "index": false },
-				      "paneY": { "type": "integer", "index": false },
-				      "imageWidth": { "type": "integer", "index": false },
-				      "imageHeight": { "type": "integer", "index": false },
-				
-				      "metaData": { "type": "keyword", "index": false },
-				      "assayMgiid": { "type": "keyword", "index": false },
-				      "specimenLabel": { "type": "keyword", "index": false },
-				
-				      "byAssayType": { "type": "integer" },
-				      "byMarker": { "type": "integer" },
-				      "byHybridizationAsc": { "type": "integer" },
-				      "byHybridizationDesc": { "type": "integer" }
-		        }
-		      }
+		      "gxdImagePaneResultKey": {"type": "keyword"},
+		      "_version_": {"type": "long"}
 		    }
 		  }
 		}

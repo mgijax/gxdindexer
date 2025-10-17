@@ -738,8 +738,9 @@ public class GxdResultIndexer extends Indexer {
 	 */
 	public void index() throws Exception {
 		// pull a bunch of mappings into memory, to make later
-		// processing easier		
-        logger.info("gxdResultIndexer starting run");
+		// processing easier
+
+                logger.info("gxdResultIndexer starting run");
 
 		try {
 			markerMpCache = new MarkerMPCache();
@@ -804,19 +805,13 @@ public class GxdResultIndexer extends Indexer {
 		// Finally finished gathering mappings, time for the main body of work
 		// -------------------------------------------------------------------
 
-		GxdProfileMarkerIndexer gxdProfileMarkerIndexer = new GxdProfileMarkerIndexer();
-		gxdProfileMarkerIndexer.setDoNotWriteDocToES(true);
-		gxdProfileMarkerIndexer.index();
-		Map<String, List<Map<String, Object>>> gxdProfileMarkerData = gxdProfileMarkerIndexer.getDocs();
-		gxdProfileMarkerIndexer = null;
-		
 		identifySystemIDs();
 		indexClassicalData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
 			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
-			structureSynonymMap, gxdProfileMarkerData);
+			structureSynonymMap);
 		indexRnaSeqData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
 			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
-			structureSynonymMap, gxdProfileMarkerData);
+			structureSynonymMap);
 		this.setSkipOptimizer(true);
 	}
 		
@@ -886,8 +881,7 @@ public class GxdResultIndexer extends Indexer {
 			Map<String, Set<String>> vocabAncestorMap, 
 			Map<String, List<String>> structureAncestorIdMap,
 			Map<String, List<String>> structureAncestorKeyMap,
-			Map<String, List<String>> structureSynonymMap,
-			Map<String, List<Map<String, Object>>> gxdProfileMarkerData) throws Exception {
+			Map<String, List<String>> structureSynonymMap) throws Exception {
 
 		// find the maximum result key, so we have an upper bound when
 		// stepping through chunks of results
@@ -1019,11 +1013,6 @@ public class GxdResultIndexer extends Indexer {
 
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
-				List<Map<String, Object>> gxdProfileMarker = gxdProfileMarkerData.get(markerID.get(markerKey));
-				if ( gxdProfileMarker != null) {
-					doc.put("gxdProfileMarker", gxdProfileMarker);
-				}
-				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
 				if (ensemblGMID.containsKey(markerKey)) {
@@ -1270,8 +1259,7 @@ public class GxdResultIndexer extends Indexer {
 			Map<String, Set<String>> vocabAncestorMap, 
 			Map<String, List<String>> structureAncestorIdMap,
 			Map<String, List<String>> structureAncestorKeyMap,
-			Map<String, List<String>> structureSynonymMap,
-			Map<String, List<Map<String, Object>>> gxdProfileMarkerData) throws Exception {
+			Map<String, List<String>> structureSynonymMap) throws Exception {
 
 		// In order to successfully have Whole Genome (RNA-Seq) assays appear after the classical assays (with
 		// a single marker) on the Assays tab of the summary page, we need to look up the maximum sequence
@@ -1462,11 +1450,6 @@ public class GxdResultIndexer extends Indexer {
 
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
-				List<Map<String, Object>> gxdProfileMarker = gxdProfileMarkerData.get(markerID.get(markerKey));
-				if ( gxdProfileMarker != null) {
-					doc.put("gxdProfileMarker", gxdProfileMarker);
-				}
-				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
 				if (ensemblGMID.containsKey(markerKey)) {
@@ -1795,26 +1778,7 @@ public class GxdResultIndexer extends Indexer {
 		      "coHeaders": { "type": "keyword" },
 		      "featureTypes": { "type": "keyword" },
 		
-		      "_version_": { "type": "long" },
-		      
-		      "gxdProfileMarker": { 
-		        "type": "nested", 
-		        "properties": {
-			      "uniqueKey": { "type": "keyword" },
-			      "markerKey": { "type": "integer" },
-			      "markerMgiid": { "type": "keyword" },
-			
-			      "posCExact": { "type": "integer" },
-			      "posCAnc": { "type": "integer" },
-			      "posRExact": { "type": "integer" },
-			      "posRAnc": { "type": "integer" },
-			
-			      "posCExactA": { "type": "integer" },
-			      "posCAncA": { "type": "integer" },
-			      "posRExactA": { "type": "integer" },
-			      "posRAncA": { "type": "integer" }
-		        }
-		      }
+		      "_version_": { "type": "long" }
 		    }
 		  }
 		}
