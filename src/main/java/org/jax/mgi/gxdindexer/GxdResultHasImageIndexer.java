@@ -653,12 +653,21 @@ public class GxdResultHasImageIndexer extends Indexer {
 	}
 	
 	private Map<String, List<Integer>> getResultKeyToImagePanelKeyMap() throws Exception {
-		String imageQuery = "select ei.result_key,ei.imagepane_key "
-				+ "from expression_result_to_imagepane ei";
+		String sql = """
+			    SELECT distinct ei.result_key,ei.imagepane_key
+			    FROM expression_result_to_imagepane ei,
+			         expression_result_summary ers,
+			         expression_imagepane ip,
+			         image i
+			    WHERE ei.result_key = ers.result_key
+			      AND ei.imagepane_key = ip.imagepane_key
+			      AND i.image_key = ip.image_key
+			      AND i.pixeldb_numeric_id IS NOT NULL
+			    """;
 		Map<String, List<Integer>> imagePaneResultMap = new HashMap<String, List<Integer>>();
 		logger.info("building map of result keys to image pane keys ");
 
-		ResultSet rs = ex.executeProto(imageQuery);
+		ResultSet rs = ex.executeProto(sql);
 		while (rs.next()) {
 			String resultKey = rs.getString("result_key");
 			int ipKey = rs.getInt("imagepane_key");
@@ -677,6 +686,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 	public void index() throws Exception {
 		// pull a bunch of mappings into memory, to make later
 		// processing easier
+
 		try {
 			markerMpCache = new MarkerMPCache();
 		} catch (Exception e) {
@@ -776,7 +786,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 			Map<String, List<String>> structureAncestorKeyMap,
 			Map<String, List<String>> structureSynonymMap,
 			Map<String, List<Integer>> resultKeyToImagePanelKeyMap) throws Exception {
-		
+
 		// find the maximum result key, so we have an upper bound when
 		// stepping through chunks of results
 
@@ -1091,7 +1101,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 				doc.put(GxdResultFields.GENE_MATRIX_GROUP, geneMatrixGroup);
 				
 				if ( resultKeyToImagePanelKeyMap.containsKey(result_key) ) {
-					doc.put("gxdImagePaneResultKey", result_key);
+					doc.put(ImagePaneFields.IMAGE_PANE_KEY, resultKeyToImagePanelKeyMap.get(result_key));
 				}
 
 				docs.add(doc);
@@ -1279,7 +1289,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		      "doHeaders": {"type": "keyword"},
 		      "coHeaders": {"type": "keyword"},
 		      "featureTypes": {"type": "keyword"},
-		      "gxdImagePaneResultKey": {"type": "keyword"},
+		      "imagePaneKey": {"type": "integer"},
 		      "_version_": {"type": "long"}
 		    }
 		  }

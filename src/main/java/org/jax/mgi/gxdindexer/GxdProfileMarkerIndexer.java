@@ -411,6 +411,7 @@ public class GxdProfileMarkerIndexer extends Indexer
 		    "number_of_shards": 1,
 		    "number_of_replicas": 0,
 		    "refresh_interval": "10s",
+			"max_result_window": 100000,		    
 		    "analysis": {
 		      "analyzer": {
 		        "ancestor_path_index": {
