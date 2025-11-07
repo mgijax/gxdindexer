@@ -3,5 +3,6 @@
 index.url=http://bhmgigxdsolr01ld.jax.org:9200
 mgd.user=mgd_dbo
 mgd.password=db0dev
-mgd.JDBC.url=jdbc:postgresql://mgi-testdb4.jax.org:5432/fe
+#mgd.JDBC.url=jdbc:postgresql://mgi-testdb4.jax.org:5432/fe
+mgd.JDBC.url=jdbc:postgresql://bhmgidb06ld.jax.org:5432/jer_fe
 database.JDBC.driver=org.postgresql.Driver
