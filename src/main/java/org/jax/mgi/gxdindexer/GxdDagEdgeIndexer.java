@@ -157,7 +157,14 @@ public class GxdDagEdgeIndexer extends Indexer
 			if (emapsIDs.containsKey(ancestorID) && emapsIDs.get(ancestorID).containsKey(descendantID)) {
 				doc.put(DagEdgeFields.EMAPS_ID, emapsIDs.get(ancestorID).get(descendantID));
 			}
-
+            if ( isDoNotWriteDocToES() ) {
+            	Set<String> emapsIds = emapsIDs.get(ancestorID).get(descendantID);
+            	if ( emapsIds != null ) {
+	            	for (String emapsId : emapsIds) {
+	            		addDoc(emapsId, doc);
+	            	}
+            	}
+            }
 			docs.add(doc);
 		}
 		writeDocs(docs);
