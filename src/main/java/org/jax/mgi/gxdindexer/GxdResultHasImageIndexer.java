@@ -787,11 +787,17 @@ public class GxdResultHasImageIndexer extends Indexer {
 			Map<String, List<String>> structureSynonymMap,
 			Map<String, List<Integer>> resultKeyToImagePanelKeyMap) throws Exception {
 		
-		GxdImagePaneIndexer gxdImagePaneIndexer = new GxdImagePaneIndexer();
-		gxdImagePaneIndexer.setDoNotWriteDocToES(true);
-		gxdImagePaneIndexer.index();
-		Map<String, List<Map<String, Object>>> gxdImagePaneData = gxdImagePaneIndexer.getDocs();
-		gxdImagePaneIndexer = null;			
+//		GxdImagePaneIndexer gxdImagePaneIndexer = new GxdImagePaneIndexer();
+//		gxdImagePaneIndexer.setDoNotWriteDocToES(true);
+//		gxdImagePaneIndexer.index();
+//		Map<String, List<Map<String, Object>>> gxdImagePaneData = gxdImagePaneIndexer.getDocs();
+//		gxdImagePaneIndexer = null;	
+		
+		GxdProfileMarkerIndexer gxdProfileMarkerIndexer = new GxdProfileMarkerIndexer();
+		gxdProfileMarkerIndexer.setDoNotWriteDocToES(true);
+		gxdProfileMarkerIndexer.index();
+		Map<String, List<Map<String, Object>>> gxdProfileMarkerData = gxdProfileMarkerIndexer.getDocs();
+		gxdProfileMarkerIndexer = null;			
 
 		// find the maximum result key, so we have an upper bound when
 		// stepping through chunks of results
@@ -1109,19 +1115,24 @@ public class GxdResultHasImageIndexer extends Indexer {
 				if ( resultKeyToImagePanelKeyMap.containsKey(result_key) ) {
 					doc.put(ImagePaneFields.IMAGE_PANE_KEY, resultKeyToImagePanelKeyMap.get(result_key));
 					List<Map<String, Object>> imagePanes = new ArrayList<Map<String, Object>>();
-					for (Integer mkey: resultKeyToImagePanelKeyMap.get(result_key)) {
-						List<Map<String, Object>> gxdImagePanes = gxdImagePaneData.get(mkey + "");
-						if ( gxdImagePanes != null ) {
-							for ( Map<String, Object> gxdImagePane:  gxdImagePanes) {
-								if ( gxdImagePane != null) {
-									imagePanes.add(gxdImagePane);
-								}
-							}
-						}
-					}
-					doc.put("gxdImagePane", imagePanes);
+//					for (Integer mkey: resultKeyToImagePanelKeyMap.get(result_key)) {
+//						List<Map<String, Object>> gxdImagePanes = gxdImagePaneData.get(mkey + "");
+//						if ( gxdImagePanes != null ) {
+//							for ( Map<String, Object> gxdImagePane:  gxdImagePanes) {
+//								if ( gxdImagePane != null) {
+//									imagePanes.add(gxdImagePane);
+//								}
+//							}
+//						}
+//					}
+//					doc.put("gxdImagePane", imagePanes);
 				}				
 
+				List<Map<String, Object>> gxdProfileMarker = gxdProfileMarkerData.get(markerID.get(markerKey));
+				if ( gxdProfileMarker != null) {
+					doc.put("gxdProfileMarker", gxdProfileMarker);
+				}
+				
 				docs.add(doc);
 				if (docs.size() >= solrCacheSize) {
 					writeDocs(docs);
@@ -1309,33 +1320,24 @@ public class GxdResultHasImageIndexer extends Indexer {
 		      "featureTypes": {"type": "keyword"},
 		      "imagePaneKey": {"type": "integer"},
 		      "_version_": {"type": "long"},
-		      "gxdImagePane": { 
+		      "gxdProfileMarker": { 
 		        "type": "nested", 
 		        "properties": {
-				      "uniqueKey": { "type": "keyword" },
-				      "imagePaneKey": { "type": "integer" },
-				      "resultKey": { "type": "keyword" },
-				      "imageID": { "type": "keyword" },
-				
-				      "imageLabel": { "type": "keyword", "index": false },
-				      "pixeldbID": { "type": "keyword", "index": false },
-				      "paneWidth": { "type": "integer", "index": false },
-				      "paneHeight": { "type": "integer", "index": false },
-				      "paneX": { "type": "integer", "index": false },
-				      "paneY": { "type": "integer", "index": false },
-				      "imageWidth": { "type": "integer", "index": false },
-				      "imageHeight": { "type": "integer", "index": false },
-				
-				      "metaData": { "type": "keyword", "index": false },
-				      "assayMgiid": { "type": "keyword", "index": false },
-				      "specimenLabel": { "type": "keyword", "index": false },
-				
-				      "byAssayType": { "type": "integer" },
-				      "byMarker": { "type": "integer" },
-				      "byHybridizationAsc": { "type": "integer" },
-				      "byHybridizationDesc": { "type": "integer" }
+			      "uniqueKey": { "type": "keyword" },
+			      "markerKey": { "type": "integer" },
+			      "markerMgiid": { "type": "keyword" },
+			
+			      "posCExact": { "type": "integer" },
+			      "posCAnc": { "type": "integer" },
+			      "posRExact": { "type": "integer" },
+			      "posRAnc": { "type": "integer" },
+			
+			      "posCExactA": { "type": "integer" },
+			      "posCAncA": { "type": "integer" },
+			      "posRExactA": { "type": "integer" },
+			      "posRAncA": { "type": "integer" }
 		        }
-		      }		      
+		      }	      
 		    }
 		  }
 		}

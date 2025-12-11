@@ -810,20 +810,14 @@ public class GxdResultIndexer extends Indexer {
 		gxdProfileMarkerIndexer.index();
 		Map<String, List<Map<String, Object>>> gxdProfileMarkerData = gxdProfileMarkerIndexer.getDocs();
 		gxdProfileMarkerIndexer = null;			
-
-		GxdDagEdgeIndexer gxdDagEdgeIndexer = new GxdDagEdgeIndexer();
-		gxdDagEdgeIndexer.setDoNotWriteDocToES(true);
-		gxdDagEdgeIndexer.index();
-		Map<String, List<Map<String, Object>>> gxdDagEdgeData = gxdDagEdgeIndexer.getDocs();
-		gxdDagEdgeIndexer = null;		
 				
 		identifySystemIDs();
 		indexClassicalData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
 			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
-			structureSynonymMap, gxdProfileMarkerData, gxdDagEdgeData);
+			structureSynonymMap, gxdProfileMarkerData);
 		indexRnaSeqData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
 			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
-			structureSynonymMap, gxdProfileMarkerData, gxdDagEdgeData);
+			structureSynonymMap, gxdProfileMarkerData);
 		this.setSkipOptimizer(true);
 	}
 		
@@ -894,8 +888,7 @@ public class GxdResultIndexer extends Indexer {
 			Map<String, List<String>> structureAncestorIdMap,
 			Map<String, List<String>> structureAncestorKeyMap,
 			Map<String, List<String>> structureSynonymMap,
-			Map<String, List<Map<String, Object>>> gxdProfileMarkerData,
-			Map<String, List<Map<String, Object>>> gxdDagEdgeData) throws Exception {
+			Map<String, List<Map<String, Object>>> gxdProfileMarkerData) throws Exception {
 
 		// find the maximum result key, so we have an upper bound when
 		// stepping through chunks of results
@@ -1030,10 +1023,6 @@ public class GxdResultIndexer extends Indexer {
 				List<Map<String, Object>> gxdProfileMarker = gxdProfileMarkerData.get(markerID.get(markerKey));
 				if ( gxdProfileMarker != null) {
 					doc.put("gxdProfileMarker", gxdProfileMarker);
-				}
-				List<Map<String, Object>> gxdDagEdge = gxdDagEdgeData.get(rs.getString("emaps_id"));
-				if ( gxdDagEdge != null) {
-					doc.put("gxdDagEdge", gxdDagEdge);
 				}
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
@@ -1283,8 +1272,7 @@ public class GxdResultIndexer extends Indexer {
 			Map<String, List<String>> structureAncestorIdMap,
 			Map<String, List<String>> structureAncestorKeyMap,
 			Map<String, List<String>> structureSynonymMap,
-			Map<String, List<Map<String, Object>>> gxdProfileMarkerData,
-			Map<String, List<Map<String, Object>>> gxdDagEdgeData) throws Exception {
+			Map<String, List<Map<String, Object>>> gxdProfileMarkerData) throws Exception {
 
 		// In order to successfully have Whole Genome (RNA-Seq) assays appear after the classical assays (with
 		// a single marker) on the Assays tab of the summary page, we need to look up the maximum sequence
@@ -1478,11 +1466,6 @@ public class GxdResultIndexer extends Indexer {
 				List<Map<String, Object>> gxdProfileMarker = gxdProfileMarkerData.get(markerID.get(markerKey));
 				if ( gxdProfileMarker != null) {
 					doc.put("gxdProfileMarker", gxdProfileMarker);
-				}
-				
-				List<Map<String, Object>> gxdDagEdge = gxdDagEdgeData.get(rs.getString("emaps_id"));
-				if ( gxdDagEdge != null) {
-					doc.put("gxdDagEdge", gxdDagEdge);
 				}
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
@@ -1832,34 +1815,7 @@ public class GxdResultIndexer extends Indexer {
 			      "posRExactA": { "type": "integer" },
 			      "posRAncA": { "type": "integer" }
 		        }
-		      },
-		      
-		      "gxdDagEdge": { 
-		        "type": "nested", 
-		        "properties": {
-			      "uniqueKey": { "type": "keyword" },
-			      "childId": { "type": "keyword" },
-			      "childTerm": { "type": "keyword" },
-			      
-			      "childTermKey": { "type": "keyword" },
-			      "parentTermKey": { "type": "keyword" },
-			      
-			      "parentTerm": { "type": "keyword" },
-			      "parentId": { "type": "keyword" },
-			
-			      "edgeType": { "type": "keyword" },
-			      "vocab": { "type": "keyword" },
-			      "emapsId": { "type": "keyword" },
-			      "relatedAncestor": { "type": "keyword" },
-			      "relatedDescendent": { "type": "keyword" },
-			      "childStartStage": { "type": "keyword" },
-			      "childEndStage": { "type": "keyword" },
-			      "parentStartStage": { "type": "keyword" },
-			      "parentEndStage": { "type": "keyword" }
-		        }
 		      }
-		      
-		      
 		    }
 		  }
 		}
