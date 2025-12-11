@@ -1128,10 +1128,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 //					doc.put("gxdImagePane", imagePanes);
 				}				
 
-				List<Map<String, Object>> gxdProfileMarker = gxdProfileMarkerData.get(markerID.get(markerKey));
-				if ( gxdProfileMarker != null) {
-					doc.put("gxdProfileMarker", gxdProfileMarker);
-				}
+				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
 				
 				docs.add(doc);
 				if (docs.size() >= solrCacheSize) {
@@ -1153,6 +1150,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		writeDocs(docs);
 		commit();
 	}
+
 
 	// maps detection level to currently approved display text.
 	public String mapDetectionLevel(String level) {
@@ -1320,6 +1318,17 @@ public class GxdResultHasImageIndexer extends Indexer {
 		      "featureTypes": {"type": "keyword"},
 		      "imagePaneKey": {"type": "integer"},
 		      "_version_": {"type": "long"},
+		      
+		      "posCExact": { "type": "integer" },
+		      "posCAnc": { "type": "integer" },
+		      "posRExact": { "type": "integer" },
+		      "posRAnc": { "type": "integer" },
+		
+		      "posCExactA": { "type": "integer" },
+		      "posCAncA": { "type": "integer" },
+		      "posRExactA": { "type": "integer" },
+		      "posRAncA": { "type": "integer" },
+		      
 		      "gxdProfileMarker": { 
 		        "type": "nested", 
 		        "properties": {

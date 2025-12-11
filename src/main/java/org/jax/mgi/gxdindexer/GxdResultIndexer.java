@@ -1020,10 +1020,7 @@ public class GxdResultIndexer extends Indexer {
 
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
-				List<Map<String, Object>> gxdProfileMarker = gxdProfileMarkerData.get(markerID.get(markerKey));
-				if ( gxdProfileMarker != null) {
-					doc.put("gxdProfileMarker", gxdProfileMarker);
-				}
+				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
@@ -1463,10 +1460,7 @@ public class GxdResultIndexer extends Indexer {
 
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
-				List<Map<String, Object>> gxdProfileMarker = gxdProfileMarkerData.get(markerID.get(markerKey));
-				if ( gxdProfileMarker != null) {
-					doc.put("gxdProfileMarker", gxdProfileMarker);
-				}
+				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
@@ -1797,6 +1791,16 @@ public class GxdResultIndexer extends Indexer {
 		      "featureTypes": { "type": "keyword" },
 		
 		      "_version_": { "type": "long" },
+		      
+		      "posCExact": { "type": "integer" },
+		      "posCAnc": { "type": "integer" },
+		      "posRExact": { "type": "integer" },
+		      "posRAnc": { "type": "integer" },
+		
+		      "posCExactA": { "type": "integer" },
+		      "posCAncA": { "type": "integer" },
+		      "posRExactA": { "type": "integer" },
+		      "posRAncA": { "type": "integer" },		      
 		      
 		      "gxdProfileMarker": { 
 		        "type": "nested", 
