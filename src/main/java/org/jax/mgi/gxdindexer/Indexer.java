@@ -554,7 +554,7 @@ public abstract class Indexer implements Runnable {
 			add(profile, posRExact, "posRExact");
 			add(profile, posRAnc, "posRAnc");
 			add(profile, posCExactA, "posCExactA");
-			add(profile, posCAncA, "posCExact");
+			add(profile, posCAncA, "posCAncA");
 			add(profile, posRExactA, "posRExactA");
 			add(profile, posRAncA, "posRAncA");
 		}
