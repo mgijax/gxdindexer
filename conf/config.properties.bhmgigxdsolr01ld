@@ -1,6 +1,7 @@
 #index.url=http://bhmgigxdsolr01ld.jax.org:9995/solr
 #index.url=http://localhost:9200
-index.url=http://bhmgigxdsolr01ld.jax.org:9200
+#index.url=http://bhmgigxdsolr01ld.jax.org:9200
+index.url=https://test-84e470.es.us-east1.gcp.elastic-cloud.com:9243
 mgd.user=mgd_dbo
 mgd.password=db0dev
 #mgd.JDBC.url=jdbc:postgresql://mgi-testdb4.jax.org:5432/fe

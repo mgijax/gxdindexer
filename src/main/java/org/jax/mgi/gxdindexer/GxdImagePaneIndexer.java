@@ -337,11 +337,6 @@ public class GxdImagePaneIndexer extends Indexer
 		          "tokenizer": "keyword",
 		          "filter": ["lowercase"]
 		        },
-		        "phonetic_en_analyzer": {
-		          "type": "custom",
-		          "tokenizer": "standard",
-		          "filter": ["double_metaphone"]
-		        },
 		        "text_ws_analyzer": {
 		          "type": "custom",
 		          "tokenizer": "whitespace"
@@ -355,13 +350,6 @@ public class GxdImagePaneIndexer extends Indexer
 		        "path_hierarchy": {
 		          "type": "path_hierarchy",
 		          "delimiter": "/"
-		        }
-		      },
-		      "filter": {
-		        "double_metaphone": {
-		          "type": "phonetic",
-		          "encoder": "double_metaphone",
-		          "replace": false
 		        }
 		      }
 		    }
@@ -404,7 +392,6 @@ public class GxdImagePaneIndexer extends Indexer
 		        "search_analyzer": "descendent_path_query"
 		      },
 		      "lowercase": { "type": "text", "analyzer": "lowercase_keyword" },
-		      "phonetic_en": { "type": "text", "analyzer": "phonetic_en_analyzer" },
 		
 		      "pdate": { "type": "date" },
 		      "pdates": { "type": "date" },

@@ -15,6 +15,9 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.jax.mgi.gxdindexer.shr.SQLExecutor;
@@ -85,9 +88,48 @@ public abstract class Indexer implements Runnable {
         String esUrl = props.getProperty("index.url"); // example: http://localhost:9200
 
         logger.info("Connecting to Elasticsearch: " + esUrl);
+        
+//        String apiKey = "aXpNZ041c0I0cXgtNUFyT29jTjI6WUF2OUwxNHFBeUVZY3NPaVVLc3hoUQ==";  // id:key, base64 encoded
+//
+//        Header[] defaultHeaders = new Header[] {
+//            new BasicHeader("Authorization", "ApiKey " + apiKey)
+//        };  
+        
+//		 .setDefaultHeaders(defaultHeaders)
 
+        
+//        
+//        String username = "elastic";
+//        String password = "Dh1dEvW5eB5OOS1iH21CeBQD";
+//        
+//        BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
+//        credsProvider.setCredentials(
+//            AuthScope.ANY,
+//            new UsernamePasswordCredentials(username, password)
+//        );  
+        
+//        .setHttpClientConfigCallback(httpClientBuilder ->
+//        httpClientBuilder
+//            .setDefaultCredentialsProvider(credsProvider)
+//    )        
+        
+        
+        String username = "elastic";
+        String password = "Dh1dEvW5eB5OOS1iH21CeBQD";
+        
+        BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
+        credsProvider.setCredentials(
+            AuthScope.ANY,
+            new UsernamePasswordCredentials(username, password)
+        );        
+		 
         RestClientBuilder builder = RestClient.builder(
         		HttpHost.create(esUrl))
+
+        		 .setHttpClientConfigCallback(httpClientBuilder ->
+        	        httpClientBuilder
+        	            .setDefaultCredentialsProvider(credsProvider)
+        	    )        		
         	    .setRequestConfigCallback(requestConfigBuilder -> 
         	        requestConfigBuilder
         	            .setConnectTimeout(60_000)      // time to establish connection
@@ -538,8 +580,6 @@ public abstract class Indexer implements Runnable {
 		if ( gxdProfileMarker == null) {
 			return;
 		}
-//			doc.put("gxdProfileMarker", gxdProfileMarker);
-		doc.put("gxdProfileMarker", null);
 		List<Object> posCExact = new ArrayList<Object>();
 		List<Object> posCAnc = new ArrayList<Object>();
 		List<Object> posRExact = new ArrayList<Object>();

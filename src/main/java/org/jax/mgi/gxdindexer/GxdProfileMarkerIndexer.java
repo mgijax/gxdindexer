@@ -32,10 +32,21 @@ public class GxdProfileMarkerIndexer extends Indexer
 	// maps from EMAPS structure key to all of its EMAPS ancestor keys 
 	private Map<String,Set<String>> emapsAncestors = null;
 	
+	private boolean collectPosMap = true;
+	public static final List<String> FIELD_NAMES = List.of(
+			GxdResultFields.PROF_POS_C_EXACT, GxdResultFields.PROF_POS_C_ANC, GxdResultFields.PROF_POS_C_EXACT_A, 
+			GxdResultFields.PROF_POS_C_ANC_A, GxdResultFields.PROF_POS_R_EXACT, GxdResultFields.PROF_POS_R_ANC, 
+			GxdResultFields.PROF_POS_R_EXACT_A, GxdResultFields.PROF_POS_R_ANC_A
+			);
+	private Map<String, List<Map<String, Object>>> fieldPosMgiidMap = null;
 	//--- constructors ---//
 	
 	public GxdProfileMarkerIndexer () {
-		super("gxd_profile_marker");
+		super("gxd_profile_marker_pos_lookup");
+		fieldPosMgiidMap = new HashMap<String, List<Map<String, Object>>>();
+		for (String field: FIELD_NAMES) {
+			fieldPosMgiidMap.put(field, new ArrayList<Map<String, Object>>());			
+		}
 	}
 
 	//--- methods ---//
@@ -307,8 +318,58 @@ public class GxdProfileMarkerIndexer extends Indexer
 		doc.put(GxdResultFields.PROF_POS_R_EXACT_A, toInts(posRexactA));
 		doc.put(GxdResultFields.PROF_POS_R_ANC_A,   toInts(posRancA));
 
+		if ( isCollectPosMap() ) {
+			addMap(GxdResultFields.PROF_POS_C_EXACT,   markerID, toInts(posCexact));
+			addMap(GxdResultFields.PROF_POS_C_ANC,     markerID, toInts(posCanc));
+			addMap(GxdResultFields.PROF_POS_C_EXACT_A, markerID, toInts(posCexactA));
+			addMap(GxdResultFields.PROF_POS_C_ANC_A,   markerID, toInts(posCancA));
+	
+			addMap(GxdResultFields.PROF_POS_R_EXACT,   markerID, toInts(posRexact));
+			addMap(GxdResultFields.PROF_POS_R_ANC,     markerID, toInts(posRanc));
+			addMap(GxdResultFields.PROF_POS_R_EXACT_A, markerID, toInts(posRexactA));
+			addMap(GxdResultFields.PROF_POS_R_ANC_A,   markerID, toInts(posRancA));
+		}
+		
 		return doc;
 	}
+	
+	private void addMap(String field, String markerMgiid, Set<Integer> values) {
+		List<Map<String, Object>> posMgiidMap = fieldPosMgiidMap.get(field);
+	    for (Integer v : values) {
+	        Map<String, Object> doc = new HashMap<>();
+	        doc.put("field", field);
+	        doc.put("pos_id", String.valueOf(v));
+            doc.put("markerMgiid", markerMgiid);
+            posMgiidMap.add(doc);
+	    }
+	}	
+	
+//	private void addMapOld(String field, String markerMgiid, Set<Integer> values) {
+//	    Map<String, Map<String, Object>> posMgiidMap =fieldPosMgiidMap.get(field);
+//	    for (Integer v : values) {
+//	        String key = String.valueOf(v);
+//	        Map<String, Object> doc = posMgiidMap.get(key);
+//	        if (doc == null) {
+//	            doc = new HashMap<>();
+//	            doc.put("pos_id", v);
+//	            List<String> mgiids = new ArrayList<>();
+//	            mgiids.add(markerMgiid);
+//	            doc.put("markerMgiid", mgiids);
+//	            posMgiidMap.put(key, doc);
+//
+//	        } else {
+//	            @SuppressWarnings("unchecked")
+//	            List<String> mgiids = (List<String>) doc.get("markerMgiid");
+//	            if (mgiids == null) {
+//	                mgiids = new ArrayList<>();
+//	                doc.put("markerMgiid", mgiids);
+//	            }
+//	            if (!mgiids.contains(markerMgiid)) {
+//	                mgiids.add(markerMgiid);
+//	            }
+//	        }
+//	    }
+//	}
 
 	// main logic for building the index
 	public void index() throws Exception
@@ -345,13 +406,19 @@ public class GxdProfileMarkerIndexer extends Indexer
 			for (Integer markerKey : markerResults.keySet()) {
 				Map<String, Object> doc = buildSolrDoc(markerKey, markerIDs.get(markerKey), markerResults.get(markerKey));
                 if ( isDoNotWriteDocToES() ) {
-                	addDoc(markerIDs.get(markerKey), doc);
+                	if ( !isCollectPosMap() ) {
+                		addDoc(markerIDs.get(markerKey), doc);
+                	}
                 }
 				docs.add(doc);
 				if (docs.size() > cacheSize) {
-                                        logger.info(" - writing " + docs.size() + " docs.");
-					writeDocs(docs);
+                    logger.info(" - writing " + docs.size() + " docs.");
+					//writeDocs(docs);
 					docs = new ArrayList<>();
+					
+					if ( isCollectPosMap() ) {
+						writePosDoc();
+					}
 				}
 			}
 			logger.info(" - built solr docs");
@@ -361,10 +428,25 @@ public class GxdProfileMarkerIndexer extends Indexer
 		} // end while (walking through chunks of markers)
 
 		if (docs.size() > 0) {
-                        logger.info(" - writing " + docs.size() + " docs.");
-			writeDocs(docs);
+            logger.info(" - writing " + docs.size() + " docs.");
+			//writeDocs(docs);
+			if ( isCollectPosMap() ) {
+				writePosDoc();
+			}
 		}
 		commit();
+	}
+	
+	private void writePosDoc() {
+		for (String field: GxdProfileMarkerIndexer.FIELD_NAMES) {
+			List<Map<String, Object>> docs = fieldPosMgiidMap.get(field);
+			writeDocs(docs);
+		}
+		fieldPosMgiidMap = new HashMap<String, List<Map<String, Object>>>();
+		for (String field: FIELD_NAMES) {
+			fieldPosMgiidMap.put(field, new ArrayList<Map<String, Object>>());			
+		}
+		
 	}
 
 	// helper classes
@@ -405,8 +487,8 @@ public class GxdProfileMarkerIndexer extends Indexer
 		return "TS"+stage+":"+structureId;
 	}
 
-	@Override
-	protected String getIndexMappingJson() {
+	//@Override
+	protected String getIndexMappingJson1() {
 		String mappingJson = """
 		{
 		  "settings": {
@@ -438,11 +520,6 @@ public class GxdProfileMarkerIndexer extends Indexer
 		          "tokenizer": "keyword",
 		          "filter": ["lowercase"]
 		        },
-		        "phonetic_en": {
-		          "type": "custom",
-		          "tokenizer": "standard",
-		          "filter": ["double_metaphone"]
-		        },
 		        "text_general": {
 		          "type": "custom",
 		          "tokenizer": "standard",
@@ -463,11 +540,6 @@ public class GxdProfileMarkerIndexer extends Indexer
 		        "stopwords_filter": {
 		          "type": "stop",
 		          "stopwords": ["and", "from", "of", "or", "the", "their", "to"]
-		        },
-		        "double_metaphone": {
-		          "type": "phonetic",
-		          "encoder": "double_metaphone",
-		          "replace": false
 		        },
 		        "word_delimiter": {
 		          "type": "word_delimiter",
@@ -514,7 +586,6 @@ public class GxdProfileMarkerIndexer extends Indexer
 		      "ancestor_path": { "type": "text", "analyzer": "ancestor_path_index", "search_analyzer": "ancestor_path_query" },
 		      "descendent_path": { "type": "text", "analyzer": "descendent_path_index", "search_analyzer": "descendent_path_query" },
 		      "lowercase_field": { "type": "text", "analyzer": "lowercase_keyword" },
-		      "phonetic_field": { "type": "text", "analyzer": "phonetic_en" },
 		      "text_field": { "type": "text", "analyzer": "text_general" }
 		    }
 		  }
@@ -522,5 +593,45 @@ public class GxdProfileMarkerIndexer extends Indexer
 
 		""";
 		return mappingJson;
+	}
+
+	@Override
+	protected String getIndexMappingJson() {
+		String mappingJson = """
+		{
+		  "settings": {  
+		    "number_of_shards": 4,
+		    "number_of_replicas": 0,
+		    "refresh_interval": "10s",
+		    "max_result_window": 1000000
+		  },
+		  "mappings": {
+			"properties": {
+		      "pos_id": {
+		        "type": "integer"
+		      },
+		      "markerMgiid": {
+		        "type": "keyword"
+		      },
+		      "field": {
+		        "type": "keyword"
+		      }
+		    }
+		  }
+		}
+		""";
+		//"_source": { "enabled": false },
+		return mappingJson;
+	}	
+	public boolean isCollectPosMap() {
+		return collectPosMap;
+	}
+
+	public void setCollectPosMap(boolean collectPosMap) {
+		this.collectPosMap = collectPosMap;
+	}
+
+	public Map<String, List<Map<String, Object>>> getFieldPosMgiidMap() {
+		return fieldPosMgiidMap;
 	}
 }

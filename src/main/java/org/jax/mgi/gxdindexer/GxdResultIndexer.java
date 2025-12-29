@@ -1800,26 +1800,7 @@ public class GxdResultIndexer extends Indexer {
 		      "posCExactA": { "type": "integer" },
 		      "posCAncA": { "type": "integer" },
 		      "posRExactA": { "type": "integer" },
-		      "posRAncA": { "type": "integer" },		      
-		      
-		      "gxdProfileMarker": { 
-		        "type": "nested", 
-		        "properties": {
-			      "uniqueKey": { "type": "keyword" },
-			      "markerKey": { "type": "integer" },
-			      "markerMgiid": { "type": "keyword" },
-			
-			      "posCExact": { "type": "integer" },
-			      "posCAnc": { "type": "integer" },
-			      "posRExact": { "type": "integer" },
-			      "posRAnc": { "type": "integer" },
-			
-			      "posCExactA": { "type": "integer" },
-			      "posCAncA": { "type": "integer" },
-			      "posRExactA": { "type": "integer" },
-			      "posRAncA": { "type": "integer" }
-		        }
-		      }
+		      "posRAncA": { "type": "integer" }
 		    }
 		  }
 		}
