@@ -31,7 +31,6 @@ public class Main {
 		indexerMap.put("gxdResultHasImage", new GxdResultHasImageIndexer());
 		indexerMap.put("gxdDagEdge", new GxdDagEdgeIndexer());
 		indexerMap.put("gxdConsolidatedSample", new GxdConsolidatedSampleIndexer());
-		//indexerMap.put("gxdProfileMarkerPosLookup", new GxdProfileMarkerPosLookupIndexer());
 	}
 
 	public static int maxThreads = 1;

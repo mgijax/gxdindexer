@@ -113,23 +113,18 @@ public abstract class Indexer implements Runnable {
 //            .setDefaultCredentialsProvider(credsProvider)
 //    )        
         
-        
-        String username = "elastic";
-        String password = "Dh1dEvW5eB5OOS1iH21CeBQD";
-        
-        BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(
-            AuthScope.ANY,
-            new UsernamePasswordCredentials(username, password)
-        );        
+//        
+//        String username = "elastic";
+//        String password = "Dh1dEvW5eB5OOS1iH21CeBQD";
+//        
+//        BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
+//        credsProvider.setCredentials(
+//            AuthScope.ANY,
+//            new UsernamePasswordCredentials(username, password)
+//        );        
 		 
         RestClientBuilder builder = RestClient.builder(
-        		HttpHost.create(esUrl))
-
-        		 .setHttpClientConfigCallback(httpClientBuilder ->
-        	        httpClientBuilder
-        	            .setDefaultCredentialsProvider(credsProvider)
-        	    )        		
+        		HttpHost.create(esUrl))       		
         	    .setRequestConfigCallback(requestConfigBuilder -> 
         	        requestConfigBuilder
         	            .setConnectTimeout(60_000)      // time to establish connection
