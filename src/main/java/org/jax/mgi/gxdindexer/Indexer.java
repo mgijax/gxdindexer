@@ -14,6 +14,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.http.Header;
+import org.apache.http.HttpHost;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -89,12 +92,12 @@ public abstract class Indexer implements Runnable {
 
         logger.info("Connecting to Elasticsearch: " + esUrl);
         
-//        String apiKey = "aXpNZ041c0I0cXgtNUFyT29jTjI6WUF2OUwxNHFBeUVZY3NPaVVLc3hoUQ==";  // id:key, base64 encoded
+//        String apiKey = "SDk4QWRwc0JZY0MyWlluMkFHcDg6alJLVl9jUzFwZ2JwWWNNNW5YLWdwUQ==";  // id:key, base64 encoded
 //
 //        Header[] defaultHeaders = new Header[] {
 //            new BasicHeader("Authorization", "ApiKey " + apiKey)
 //        };  
-        
+//        
 //		 .setDefaultHeaders(defaultHeaders)
 
         
@@ -124,7 +127,7 @@ public abstract class Indexer implements Runnable {
 //        );        
 		 
         RestClientBuilder builder = RestClient.builder(
-        		HttpHost.create(esUrl))       		
+        		HttpHost.create(esUrl)) 
         	    .setRequestConfigCallback(requestConfigBuilder -> 
         	        requestConfigBuilder
         	            .setConnectTimeout(60_000)      // time to establish connection
