@@ -1661,77 +1661,85 @@ public class GxdResultIndexer extends Indexer {
 		String mappingJson = """
 		{
 		  "settings": {
-		    "number_of_shards": 4,
-		    "number_of_replicas": 0,
+		    "number_of_shards": 6,
+		    "number_of_replicas": 1,
 		    "refresh_interval": "10s",
-		    "max_result_window": 1000000,
-			"analysis": {
-			  "filter": {
-			    "custom_english_stop": {
-			      "type": "stop",
-			      "stopwords": ["and", "from", "of", "or", "the", "their", "to"]
-			    }
-			  },
-			  "analyzer": {
-			    "lowercase_keyword": {
-			      "tokenizer": "keyword",
-			      "filter": ["lowercase"]
-			    },
-			    "whitespace_lower": {
-			      "tokenizer": "whitespace",
-			      "filter": ["lowercase"]
-			    },
-			    "text_index_analyzer": {
-			      "tokenizer": "whitespace",
-			      "filter": ["lowercase", "custom_english_stop"]
-			    },
-			    "text_query_analyzer": {
-			      "tokenizer": "whitespace",
-			      "filter": ["lowercase", "custom_english_stop"]
-			    }
-			  },
-			  "normalizer": {
-			    "lowercase_normalizer": {
-			      "type": "custom",
-			      "filter": ["lowercase"]
-			    }
-			  }
-			}
+		    "max_result_window": 100000,
+		
+		    "index": {
+		      "sort.field": [
+		        "markerMgiid",
+		        "structureExact",
+		        "theilerStage",
+		        "assayType"
+		      ],
+		      "sort.order": ["asc", "asc", "asc", "asc"]
+		    },
+		
+		    "analysis": {
+		      "filter": {
+		        "custom_english_stop": {
+		          "type": "stop",
+		          "stopwords": ["and", "from", "of", "or", "the", "their", "to"]
+		        }
+		      },
+		      "analyzer": {
+		        "whitespace_lower": {
+		          "tokenizer": "whitespace",
+		          "filter": ["lowercase"]
+		        }
+		      },
+		      "normalizer": {
+		        "lowercase_normalizer": {
+		          "type": "custom",
+		          "filter": ["lowercase"]
+		        }
+		      }
+		    }
 		  },
+		
 		  "mappings": {
 		    "properties": {
+		
 		      "markerKey": { "type": "keyword" },
-		      "nomenclature": { "type": "text", "analyzer": "whitespace_lower", "fields": { "keyword": { "type": "keyword" } } },
-		      "annotation": { "type": "keyword" },
+		
 		      "markerMgiid": { "type": "keyword" },
 		      "markerSymbol": { "type": "keyword" },
-		      "markerSymbolLower": { "type": "text", "analyzer": "text_index_analyzer" },
+		
+		      "markerSymbolLower": {
+		        "type": "keyword",
+		        "normalizer": "lowercase_normalizer"
+		      },
+		
 		      "markerName": { "type": "keyword", "index": false },
 		      "markerType": { "type": "keyword" },
+		
 		      "chr": { "type": "keyword", "index": false },
 		      "cM": { "type": "keyword", "index": false },
 		      "cytoband": { "type": "keyword", "index": false },
 		      "startCoord": { "type": "keyword", "index": false },
 		      "endCoord": { "type": "keyword", "index": false },
 		      "strand": { "type": "keyword", "index": false },
-		      "mc": {"type": "point"},
-		      "ensemblGeneModelID": { "type": "keyword", "index": false },
+		
+		      "mc": { "type": "point" },
 		
 		      "byMrkSymbol": { "type": "integer" },
 		      "byLocation": { "type": "integer" },
 		
 		      "assayKey": { "type": "keyword" },
+		      "assayType": { "type": "keyword" },
 		      "hasImage": { "type": "boolean" },
-		      "byAssayMrkSymbol": { "type": "integer" },
-		      "byAssayAssayType": { "type": "integer" },
 		
-		      "resultType": { "type": "text", "analyzer": "text_index_analyzer" },
 		      "resultKey": { "type": "keyword" },
 		      "uniqueKey": { "type": "keyword" },
-		      "assayType": { "type": "keyword" },
+		
+		      "resultType": {
+		        "type": "keyword",
+		        "normalizer": "lowercase_normalizer"
+		      },
+		
 		      "ageMin": { "type": "float" },
 		      "ageMax": { "type": "float" },
-		      "consolidatedSampleKey": { "type": "keyword" },
 		
 		      "theilerStage": { "type": "integer" },
 		      "isExpressed": { "type": "keyword" },
@@ -1739,37 +1747,40 @@ public class GxdResultIndexer extends Indexer {
 		      "stageMatrixGroup": { "type": "keyword" },
 		      "geneMatrixGroup": { "type": "keyword" },
 		
-		      "structureAncestors": { "type": "text", "analyzer": "text_index_analyzer" },
 		      "structureExact": { "type": "keyword" },
-		      "emapsId": { "type": "text", "analyzer": "whitespace_lower" },
 		      "structureId": { "type": "keyword" },
 		      "structureKey": { "type": "keyword" },
 		      "annotatedStructureKey": { "type": "keyword" },
-		      "structureDescendants": { "type": "text", "analyzer": "text_index_analyzer" },
+		
+		      "structureAncestors": {
+		        "type": "keyword"
+		      },
+		
+		      "structureDescendants": {
+		        "type": "keyword"
+		      },
+		
+		      "emapsId": {
+		        "type": "keyword"
+		      },
+		
 		      "isWildType": { "type": "keyword" },
-		      "mutatedIn": { "type": "text", "analyzer": "whitespace_lower" },
+		
+		      "mutatedIn": {
+		        "type": "keyword"
+		      },
+		
 		      "alleleId": { "type": "keyword" },
 		
-		      "tpmLevel": { "type": "keyword" },
-		      "avgQnTpmLevel": { "type": "keyword", "index": false },
-		      "biologicalReplicates": { "type": "keyword", "index": false },
-		      "strain": { "type": "keyword", "index": false },
-		      "sex": { "type": "keyword", "index": false },
-		      "notes": { "type": "keyword", "index": false },
-		
 		      "assayMgiid": { "type": "keyword" },
-		      "anatomicalSystem": { "type": "keyword" },
-		      "age": { "type": "keyword", "index": false },
-		      "printname": { "type": "keyword", "index": false },
+		
 		      "detectionLevel": { "type": "keyword" },
+		
+		      "printname": { "type": "keyword", "index": false },
 		      "figure": { "type": "keyword" },
 		      "figurePlain": { "type": "keyword" },
-		      "genotype": { "type": "keyword", "index": false },
+		
 		      "jNum": { "type": "keyword" },
-		      "pubmedId": { "type": "keyword", "index": false },
-		      "shortCitation": { "type": "keyword", "index": false },
-		      "pattern": { "type": "keyword", "index": false },
-		      "cellType": { "type": "keyword", "index": false },
 		
 		      "byResultAssayType": { "type": "integer" },
 		      "byResultMrkSymbol": { "type": "integer" },
@@ -1791,7 +1802,7 @@ public class GxdResultIndexer extends Indexer {
 		      "featureTypes": { "type": "keyword" },
 		
 		      "_version_": { "type": "long" },
-		      
+		
 		      "posCExact": { "type": "integer" },
 		      "posCAnc": { "type": "integer" },
 		      "posRExact": { "type": "integer" },
@@ -1804,6 +1815,7 @@ public class GxdResultIndexer extends Indexer {
 		    }
 		  }
 		}
+
 		""";
 		return mappingJson;
 	}
