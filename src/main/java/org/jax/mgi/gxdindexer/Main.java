@@ -27,10 +27,10 @@ public class Main {
 		 * */
 		indexerMap.put("gxdImagePane", new GxdImagePaneIndexer());
 		indexerMap.put("gxdProfileMarker", new GxdProfileMarkerIndexer());
-		indexerMap.put("gxdResult", new GxdResultIndexer());
-		indexerMap.put("gxdResultHasImage", new GxdResultHasImageIndexer());
 		indexerMap.put("gxdDagEdge", new GxdDagEdgeIndexer());
 		indexerMap.put("gxdConsolidatedSample", new GxdConsolidatedSampleIndexer());
+		indexerMap.put("gxdResultHasImage", new GxdResultHasImageIndexer());
+		indexerMap.put("gxdResult", new GxdResultIndexer());
 	}
 
 	public static int maxThreads = 1;
