@@ -36,7 +36,7 @@ public class GxdResultIndexer extends Indexer {
 	public static List<String> detectedYesLevels = Arrays.asList("Present", "Trace", "Weak", "Moderate", "Strong", "Very strong");
 
 	// how many Solr documents are kept in memory before being sent to Solr?
-	public int solrCacheSize = 500;
+	public int solrCacheSize = 5000;
 	
 	// count of temp tables produced so far for ordering (to ensure unique names)
 	public int tempTableCount = 0;
@@ -1662,7 +1662,7 @@ public class GxdResultIndexer extends Indexer {
 		{
 		  "settings": {
 		    "number_of_shards": 6,
-		    "number_of_replicas": 1,
+		    "number_of_replicas": 0,
 		    "refresh_interval": "10s",
 		    "max_result_window": 100000,
 		

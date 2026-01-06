@@ -285,7 +285,7 @@ public class GxdDagEdgeIndexer extends Indexer
 		  "settings": {
 			"index.mode": "lookup",
 		    "number_of_shards": 1,
-		    "number_of_replicas": 1,
+		    "number_of_replicas": 0,
 		    "refresh_interval": "10s",
 			"max_result_window": 1000000,		    
 		    "analysis": {
