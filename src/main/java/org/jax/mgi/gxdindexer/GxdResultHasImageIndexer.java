@@ -35,7 +35,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 	public static List<String> detectedYesLevels = Arrays.asList("Present", "Trace", "Weak", "Moderate", "Strong", "Very strong");
 
 	// how many Solr documents are kept in memory before being sent to Solr?
-	public int solrCacheSize = 1000;
+	public int solrCacheSize = 5000;
 	
 	// caches of genotype data (key is genotype key)
 	public Map<String, String> allelePairs = null;
@@ -1187,7 +1187,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		  "settings": {
 		    "number_of_shards": 2,
 		    "number_of_replicas": 0,
-		    "refresh_interval": "10s",
+		    "refresh_interval": "-1",
 		    "max_result_window": 100000,
 		    "analysis": {
 		      "filter": {
