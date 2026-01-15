@@ -406,7 +406,7 @@ public class GxdProfileMarkerIndexer extends Indexer
 	}
 
 	//@Override
-	protected String getIndexMappingJson1() {
+	protected String getIndexMappingJson() {
 		String mappingJson = """
 		{
 		  "settings": {
@@ -512,33 +512,4 @@ public class GxdProfileMarkerIndexer extends Indexer
 		""";
 		return mappingJson;
 	}
-
-	@Override
-	protected String getIndexMappingJson() {
-		String mappingJson = """
-		{
-		  "settings": {  
-		    "number_of_shards": 4,
-		    "number_of_replicas": 0,
-		    "refresh_interval": "10s",
-		    "max_result_window": 1000000
-		  },
-		  "mappings": {
-			"properties": {
-		      "pos_id": {
-		        "type": "integer"
-		      },
-		      "markerMgiid": {
-		        "type": "keyword"
-		      },
-		      "field": {
-		        "type": "keyword"
-		      }
-		    }
-		  }
-		}
-		""";
-		//"_source": { "enabled": false },
-		return mappingJson;
-	}	
 }
