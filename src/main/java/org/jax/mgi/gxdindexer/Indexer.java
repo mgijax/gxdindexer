@@ -575,35 +575,35 @@ public abstract class Indexer implements Runnable {
 	
 	
 	protected void addProfileMarker(Map<String, Object> doc, List<Map<String, Object>> gxdProfileMarker) {
-//		if ( gxdProfileMarker == null) {
-//			return;
-//		}
-//		List<Object> posCExact = new ArrayList<Object>();
-//		List<Object> posCAnc = new ArrayList<Object>();
-//		List<Object> posRExact = new ArrayList<Object>();
-//		List<Object> posRAnc = new ArrayList<Object>();
-//		List<Object> posCExactA = new ArrayList<Object>();
-//		List<Object> posCAncA = new ArrayList<Object>();
-//		List<Object> posRExactA = new ArrayList<Object>();
-//		List<Object> posRAncA = new ArrayList<Object>();
-//		for (Map<String, Object> profile: gxdProfileMarker) {
-//			add(profile, posCExact, "posCExact");
-//			add(profile, posCAnc, "posCAnc");
-//			add(profile, posRExact, "posRExact");
-//			add(profile, posRAnc, "posRAnc");
-//			add(profile, posCExactA, "posCExactA");
-//			add(profile, posCAncA, "posCAncA");
-//			add(profile, posRExactA, "posRExactA");
-//			add(profile, posRAncA, "posRAncA");
-//		}
-//		doc.put("posCExact", posCExact);
-//		doc.put("posCAnc", posCAnc);
-//		doc.put("posRExact", posRExact);
-//		doc.put("posRAnc", posRAnc);
-//		doc.put("posCExactA", posCExactA);
-//		doc.put("posCAncA", posCAncA);
-//		doc.put("posRExactA", posRExactA);
-//		doc.put("posRAncA", posRAncA);	
+		if ( gxdProfileMarker == null) {
+			return;
+		}
+		List<Object> posCExact = new ArrayList<Object>();
+		List<Object> posCAnc = new ArrayList<Object>();
+		List<Object> posRExact = new ArrayList<Object>();
+		List<Object> posRAnc = new ArrayList<Object>();
+		List<Object> posCExactA = new ArrayList<Object>();
+		List<Object> posCAncA = new ArrayList<Object>();
+		List<Object> posRExactA = new ArrayList<Object>();
+		List<Object> posRAncA = new ArrayList<Object>();
+		for (Map<String, Object> profile: gxdProfileMarker) {
+			add(profile, posCExact, "posCExact");
+			add(profile, posCAnc, "posCAnc");
+			add(profile, posRExact, "posRExact");
+			add(profile, posRAnc, "posRAnc");
+			add(profile, posCExactA, "posCExactA");
+			add(profile, posCAncA, "posCAncA");
+			add(profile, posRExactA, "posRExactA");
+			add(profile, posRAncA, "posRAncA");
+		}
+		doc.put("posCExact", posCExact);
+		doc.put("posCAnc", posCAnc);
+		doc.put("posRExact", posRExact);
+		doc.put("posRAnc", posRAnc);
+		doc.put("posCExactA", posCExactA);
+		doc.put("posCAncA", posCAncA);
+		doc.put("posRExactA", posRExactA);
+		doc.put("posRAncA", posRAncA);	
 	}
 	
 	private void add(Map<String, Object> profile, List<Object> list, String key) {
