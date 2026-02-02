@@ -80,7 +80,7 @@ public class GxdResultIndexer extends Indexer {
 	public Map<String, String> assayID = null;
 	
 	public GxdResultIndexer() {
-		super("gxd_result_profile_dag");
+		super("gxd_result");
 	}
 
 	// cache data for assays for expression results > startKey and <= endKey
@@ -807,8 +807,8 @@ public class GxdResultIndexer extends Indexer {
 
 		GxdDagEdgeIndexer gxdDagEdgeIndexer = new GxdDagEdgeIndexer();
 		gxdDagEdgeIndexer.setDoNotWriteDocToES(true);
-		gxdDagEdgeIndexer.index();
-		Map<String, List<Map<String, Object>>> gxdDagEdgeIndexerData = gxdDagEdgeIndexer.getDocs();
+//		gxdDagEdgeIndexer.index();
+		Map<String, List<Map<String, Object>>> gxdDagEdgeIndexerData = null; //gxdDagEdgeIndexer.getDocs();
 		gxdDagEdgeIndexer = null;	
 
 		GxdProfileMarkerIndexer gxdProfileMarkerIndexer = new GxdProfileMarkerIndexer();
@@ -1028,7 +1028,7 @@ public class GxdResultIndexer extends Indexer {
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
 				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
-				addDagEdge(doc, gxdDagEdgeIndexerData.get(rs.getString("emaps_id")));				
+//				addDagEdge(doc, gxdDagEdgeIndexerData.get(rs.getString("emaps_id")));				
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
@@ -1470,7 +1470,7 @@ public class GxdResultIndexer extends Indexer {
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
 				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
-				addDagEdge(doc, gxdDagEdgeIndexerData.get(rs.getString("emaps_id")));
+//				addDagEdge(doc, gxdDagEdgeIndexerData.get(rs.getString("emaps_id")));
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
@@ -1865,22 +1865,7 @@ public class GxdResultIndexer extends Indexer {
 		      "posCExactA": { "type": "integer" },
 		      "posCAncA": { "type": "integer" },
 		      "posRExactA": { "type": "integer" },
-		      "posRAncA": { "type": "integer" },
-		      
-		      "childId": { "type": "keyword" },
-		      "childTerm": { "type": "keyword" },
-		      "childTermKey": { "type": "integer" },
-		      "parentTermKey": { "type": "integer" },
-		      "parentTerm": { "type": "keyword" },
-		      "parentId": { "type": "keyword" },
-		      "edgeType": { "type": "keyword" },
-		      "vocab": { "type": "keyword" },
-		      "relatedAncestor": { "type": "keyword" },
-		      "relatedDescendent": { "type": "keyword" },
-		      "childStartStage": { "type": "integer" },
-		      "childEndStage": { "type": "integer" },
-		      "parentStartStage": { "type": "integer" },
-		      "parentEndStage": { "type": "integer" }		      
+		      "posRAncA": { "type": "integer" }	      
 		    }
 		  }
 		}
@@ -1888,3 +1873,23 @@ public class GxdResultIndexer extends Indexer {
 		return mappingJson;
 	}
 }
+
+/*
+,
+
+"childId": { "type": "keyword" },
+"childTerm": { "type": "keyword" },
+"childTermKey": { "type": "integer" },
+"parentTermKey": { "type": "integer" },
+"parentTerm": { "type": "keyword" },
+"parentId": { "type": "keyword" },
+"edgeType": { "type": "keyword" },
+"vocab": { "type": "keyword" },
+"relatedAncestor": { "type": "keyword" },
+"relatedDescendent": { "type": "keyword" },
+"childStartStage": { "type": "integer" },
+"childEndStage": { "type": "integer" },
+"parentStartStage": { "type": "integer" },
+"parentEndStage": { "type": "integer" }	
+
+*/
