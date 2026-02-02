@@ -80,7 +80,7 @@ public class GxdResultIndexer extends Indexer {
 	public Map<String, String> assayID = null;
 	
 	public GxdResultIndexer() {
-		super("gxd_result");
+		super("gxd_result_profile_dag");
 	}
 
 	// cache data for assays for expression results > startKey and <= endKey
@@ -805,19 +805,25 @@ public class GxdResultIndexer extends Indexer {
 		// Finally finished gathering mappings, time for the main body of work
 		// -------------------------------------------------------------------
 
+		GxdDagEdgeIndexer gxdDagEdgeIndexer = new GxdDagEdgeIndexer();
+		gxdDagEdgeIndexer.setDoNotWriteDocToES(true);
+		gxdDagEdgeIndexer.index();
+		Map<String, List<Map<String, Object>>> gxdDagEdgeIndexerData = gxdDagEdgeIndexer.getDocs();
+		gxdDagEdgeIndexer = null;	
+
 		GxdProfileMarkerIndexer gxdProfileMarkerIndexer = new GxdProfileMarkerIndexer();
 		gxdProfileMarkerIndexer.setDoNotWriteDocToES(true);
 		gxdProfileMarkerIndexer.index();
 		Map<String, List<Map<String, Object>>> gxdProfileMarkerData = gxdProfileMarkerIndexer.getDocs();
-		gxdProfileMarkerIndexer = null;			
+		gxdProfileMarkerIndexer = null;	
 				
 		identifySystemIDs();
 		indexClassicalData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
 			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
-			structureSynonymMap, gxdProfileMarkerData);
+			structureSynonymMap, gxdProfileMarkerData, gxdDagEdgeIndexerData);
 		indexRnaSeqData(markerNomenMap, centimorganMap, mutatedInMap, mutatedInAlleleMap,
 			markerVocabMap, vocabAncestorMap, structureAncestorIdMap, structureAncestorKeyMap,
-			structureSynonymMap, gxdProfileMarkerData);
+			structureSynonymMap, gxdProfileMarkerData, gxdDagEdgeIndexerData);
 		this.setSkipOptimizer(true);
 	}
 		
@@ -888,7 +894,8 @@ public class GxdResultIndexer extends Indexer {
 			Map<String, List<String>> structureAncestorIdMap,
 			Map<String, List<String>> structureAncestorKeyMap,
 			Map<String, List<String>> structureSynonymMap,
-			Map<String, List<Map<String, Object>>> gxdProfileMarkerData) throws Exception {
+			Map<String, List<Map<String, Object>>> gxdProfileMarkerData,
+			Map<String, List<Map<String, Object>>> gxdDagEdgeIndexerData) throws Exception {
 
 		// find the maximum result key, so we have an upper bound when
 		// stepping through chunks of results
@@ -1021,6 +1028,7 @@ public class GxdResultIndexer extends Indexer {
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
 				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
+				addDagEdge(doc, gxdDagEdgeIndexerData.get(rs.getString("emaps_id")));				
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
@@ -1269,7 +1277,8 @@ public class GxdResultIndexer extends Indexer {
 			Map<String, List<String>> structureAncestorIdMap,
 			Map<String, List<String>> structureAncestorKeyMap,
 			Map<String, List<String>> structureSynonymMap,
-			Map<String, List<Map<String, Object>>> gxdProfileMarkerData) throws Exception {
+			Map<String, List<Map<String, Object>>> gxdProfileMarkerData,
+			Map<String, List<Map<String, Object>>> gxdDagEdgeIndexerData) throws Exception {
 
 		// In order to successfully have Whole Genome (RNA-Seq) assays appear after the classical assays (with
 		// a single marker) on the Assays tab of the summary page, we need to look up the maximum sequence
@@ -1461,6 +1470,7 @@ public class GxdResultIndexer extends Indexer {
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
 				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
+				addDagEdge(doc, gxdDagEdgeIndexerData.get(rs.getString("emaps_id")));
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
@@ -1656,6 +1666,61 @@ public class GxdResultIndexer extends Indexer {
 		commit();
 	}
 
+	protected void addDagEdge(Map<String, Object> doc, List<Map<String, Object>> gxdDagEdge) {
+		if ( gxdDagEdge == null) {
+			return;
+		}
+		List<Object> childId = new ArrayList<Object>();
+		List<Object> childTerm = new ArrayList<Object>();
+		List<Object> childTermKey = new ArrayList<Object>();
+		List<Object> parentTermKey = new ArrayList<Object>();
+		List<Object> parentTerm = new ArrayList<Object>();
+		List<Object> parentId = new ArrayList<Object>();
+		List<Object> edgeType = new ArrayList<Object>();
+		List<Object> vocab = new ArrayList<Object>();
+		List<Object> relatedAncestor = new ArrayList<Object>();
+		List<Object> relatedDescendent = new ArrayList<Object>();
+		List<Object> childStartStage = new ArrayList<Object>();
+		List<Object> childEndStage = new ArrayList<Object>();
+		List<Object> parentStartStage = new ArrayList<Object>();
+		List<Object> parentEndStage = new ArrayList<Object>();
+
+		for (Map<String, Object> dagEdge: gxdDagEdge) {
+			add(dagEdge, childId, "childId");
+			add(dagEdge, childTerm, "childTerm");
+			add(dagEdge, childTermKey, "childTermKey");
+			add(dagEdge, parentTermKey, "parentTermKey");
+			add(dagEdge, parentTerm, "parentTerm");
+			
+			add(dagEdge, parentId, "parentId");
+			add(dagEdge, edgeType, "edgeType");
+			add(dagEdge, vocab, "vocab");
+			add(dagEdge, relatedAncestor, "relatedAncestor");
+
+			add(dagEdge, relatedDescendent, "relatedDescendent");
+			add(dagEdge, childStartStage, "childStartStage");
+			add(dagEdge, childEndStage, "childEndStage");
+			add(dagEdge, parentStartStage, "parentStartStage");
+			add(dagEdge, parentEndStage, "parentEndStage");
+		}
+		doc.put("childId", childId);
+		doc.put("childTerm", childTerm);
+		doc.put("childTermKey", childTermKey);
+		doc.put("parentTermKey", parentTermKey);
+		doc.put("parentTerm", parentTerm);
+
+		doc.put("parentId", parentId);
+		doc.put("edgeType", edgeType);
+		doc.put("vocab", vocab);
+		doc.put("relatedAncestor", relatedAncestor);
+		
+		doc.put("relatedDescendent", relatedDescendent);
+		doc.put("childStartStage", childStartStage);
+		doc.put("childEndStage", childEndStage);
+		doc.put("parentStartStage", parentStartStage);
+		doc.put("parentEndStage", parentEndStage);
+	}	
+	
 	@Override
 	protected String getIndexMappingJson() {
 		String mappingJson = """
@@ -1741,7 +1806,7 @@ public class GxdResultIndexer extends Indexer {
 		
 		      "structureAncestors": { "type": "text", "analyzer": "text_index_analyzer" },
 		      "structureExact": { "type": "keyword" },
-		      "emapsId": { "type": "text", "analyzer": "whitespace_lower" },
+		      "emapsId": { "type": "keyword"},
 		      "structureId": { "type": "keyword" },
 		      "structureKey": { "type": "keyword" },
 		      "annotatedStructureKey": { "type": "keyword" },
@@ -1800,7 +1865,22 @@ public class GxdResultIndexer extends Indexer {
 		      "posCExactA": { "type": "integer" },
 		      "posCAncA": { "type": "integer" },
 		      "posRExactA": { "type": "integer" },
-		      "posRAncA": { "type": "integer" }
+		      "posRAncA": { "type": "integer" },
+		      
+		      "childId": { "type": "keyword" },
+		      "childTerm": { "type": "keyword" },
+		      "childTermKey": { "type": "integer" },
+		      "parentTermKey": { "type": "integer" },
+		      "parentTerm": { "type": "keyword" },
+		      "parentId": { "type": "keyword" },
+		      "edgeType": { "type": "keyword" },
+		      "vocab": { "type": "keyword" },
+		      "relatedAncestor": { "type": "keyword" },
+		      "relatedDescendent": { "type": "keyword" },
+		      "childStartStage": { "type": "integer" },
+		      "childEndStage": { "type": "integer" },
+		      "parentStartStage": { "type": "integer" },
+		      "parentEndStage": { "type": "integer" }		      
 		    }
 		  }
 		}

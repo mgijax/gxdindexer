@@ -606,7 +606,7 @@ public abstract class Indexer implements Runnable {
 		doc.put("posRAncA", posRAncA);	
 	}
 	
-	private void add(Map<String, Object> profile, List<Object> list, String key) {
+	protected void add(Map<String, Object> profile, List<Object> list, String key) {
 		Object obj = profile.get(key);
 		if ( obj != null ) {
 			list.add(obj);
