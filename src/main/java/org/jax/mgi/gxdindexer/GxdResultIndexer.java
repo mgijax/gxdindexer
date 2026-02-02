@@ -1020,7 +1020,7 @@ public class GxdResultIndexer extends Indexer {
 
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
-//				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
+				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
@@ -1460,7 +1460,7 @@ public class GxdResultIndexer extends Indexer {
 
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
-//				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
+				addProfileMarker(doc, gxdProfileMarkerData.get(markerID.get(markerKey)));
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
