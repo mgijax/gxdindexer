@@ -36,7 +36,7 @@ public class GxdResultIndexer extends Indexer {
 	public static List<String> detectedYesLevels = Arrays.asList("Present", "Trace", "Weak", "Moderate", "Strong", "Very strong");
 
 	// how many Solr documents are kept in memory before being sent to Solr?
-	public int solrCacheSize = 500;
+	public int solrCacheSize = 1200;
 	
 	// count of temp tables produced so far for ordering (to ensure unique names)
 	public int tempTableCount = 0;
@@ -1031,6 +1031,7 @@ public class GxdResultIndexer extends Indexer {
 //				addDagEdge(doc, gxdDagEdgeIndexerData.get(rs.getString("emaps_id")));				
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
+				doc.put(GxdResultFields.MARKER_SYMBOL + "Lower", markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
 				if (ensemblGMID.containsKey(markerKey)) {
 					doc.put(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
@@ -1473,6 +1474,7 @@ public class GxdResultIndexer extends Indexer {
 //				addDagEdge(doc, gxdDagEdgeIndexerData.get(rs.getString("emaps_id")));
 				
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
+				doc.put(GxdResultFields.MARKER_SYMBOL + "Lower", markerSymbol.get(markerKey));				
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
 				if (ensemblGMID.containsKey(markerKey)) {
 					doc.put(GxdResultFields.ENSEMBL_GMID, ensemblGMID.get(markerKey));
@@ -1770,7 +1772,7 @@ public class GxdResultIndexer extends Indexer {
 		      "annotation": { "type": "keyword" },
 		      "markerMgiid": { "type": "keyword" },
 		      "markerSymbol": { "type": "keyword" },
-		      "markerSymbolLower": { "type": "text", "analyzer": "text_index_analyzer" },
+		      "markerSymbolLower": { "type": "keyword", "normalizer": "lowercase" },
 		      "markerName": { "type": "keyword", "index": false },
 		      "markerType": { "type": "keyword" },
 		      "chr": { "type": "keyword", "index": false },
@@ -1873,23 +1875,3 @@ public class GxdResultIndexer extends Indexer {
 		return mappingJson;
 	}
 }
-
-/*
-,
-
-"childId": { "type": "keyword" },
-"childTerm": { "type": "keyword" },
-"childTermKey": { "type": "integer" },
-"parentTermKey": { "type": "integer" },
-"parentTerm": { "type": "keyword" },
-"parentId": { "type": "keyword" },
-"edgeType": { "type": "keyword" },
-"vocab": { "type": "keyword" },
-"relatedAncestor": { "type": "keyword" },
-"relatedDescendent": { "type": "keyword" },
-"childStartStage": { "type": "integer" },
-"childEndStage": { "type": "integer" },
-"parentStartStage": { "type": "integer" },
-"parentEndStage": { "type": "integer" }	
-
-*/

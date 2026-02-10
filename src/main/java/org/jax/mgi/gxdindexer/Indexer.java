@@ -1,7 +1,11 @@
 package org.jax.mgi.gxdindexer;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.StringReader;
 import java.sql.ResultSet;
 import java.text.DecimalFormat;
@@ -14,13 +18,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.http.Header;
 import org.apache.http.HttpHost;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.jax.mgi.gxdindexer.shr.SQLExecutor;
@@ -310,7 +308,7 @@ public abstract class Indexer implements Runnable {
 			return;
 		}		
         if (docs == null || docs.isEmpty()) return;
-
+        logger.info("Write: " + docs.size());        
         List<BulkOperation> operations = new ArrayList<>();
         for (Map<String, Object> doc : docs) {
             operations.add(BulkOperation.of(b -> b

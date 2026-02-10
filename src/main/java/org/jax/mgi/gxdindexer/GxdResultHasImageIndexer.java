@@ -929,6 +929,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 				// marker summary
 				doc.put(GxdResultFields.MARKER_MGIID, markerID.get(markerKey));
 				doc.put(GxdResultFields.MARKER_SYMBOL, markerSymbol.get(markerKey));
+				doc.put(GxdResultFields.MARKER_SYMBOL + "Lower", markerSymbol.get(markerKey));
 				doc.put(GxdResultFields.MARKER_NAME, markerName.get(markerKey));
 
 				// also add symbol and current name to searchable nomenclature
@@ -1246,7 +1247,7 @@ public class GxdResultHasImageIndexer extends Indexer {
 		      "annotation": {"type": "keyword"},
 		      "markerMgiid": {"type": "keyword"},
 		      "markerSymbol": {"type": "keyword"},
-		      "markerSymbolLower": {"type": "text", "analyzer": "text_tight"},
+		      "markerSymbolLower": { "type": "keyword", "normalizer": "lowercase" },
 		      "markerName": {"type": "keyword"},
 		      "markerType": {"type": "keyword"},
 		      "chr": {"type": "keyword"},

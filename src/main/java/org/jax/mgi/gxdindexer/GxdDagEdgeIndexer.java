@@ -1,5 +1,9 @@
 package org.jax.mgi.gxdindexer;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,6 +14,7 @@ import java.util.Set;
 
 import org.jax.mgi.shr.fe.IndexConstants;
 import org.jax.mgi.shr.fe.indexconstants.DagEdgeFields;
+import org.jax.mgi.shr.fe.indexconstants.GxdResultFields;
 
 /**
  * GxdDagEdgeIndexer
@@ -20,8 +25,9 @@ import org.jax.mgi.shr.fe.indexconstants.DagEdgeFields;
  * 
  */
 
-public class GxdDagEdgeIndexer extends Indexer 
-{   
+public class GxdDagEdgeIndexer extends Indexer {
+	private static final int BUCK_REQUEST_SIZE = 5000;
+
 	public GxdDagEdgeIndexer () 
 	{ super("gxd_dag_edge"); }
 
@@ -109,66 +115,106 @@ public class GxdDagEdgeIndexer extends Indexer
 			}
 			
 			docs.add(doc);
-		}
-		writeDocs(docs);
-	}
-
-	private void processDescendentEdges(int start,int stop) throws Exception
-	{	
-		// mapping that tells us what EMAPS IDs are valid for looking up the given edge:
-		//    emapsIDs[EMAPA ancestor ID][EMAPA descendant ID] = set of EMAPS IDs
-		Map<String,Map<String,Set<String>>> emapsIDs = this.getEmapsMapping(start, stop);
-
-		String query = "select td.unique_key, p.term_key parent_term_key,\n" + 
-				"p.term parent_term,\n" + 
-				"p.primary_id parent_id,\n" + 
-				"td.descendent_term_key,\n" + 
-				"td.descendent_term,\n" + 
-				"td.descendent_primary_id descendent_id,\n" + 
-				"p.vocab_name vocab " +
-				"from term p join\n" + 
-				"term_descendent td on td.term_key=p.term_key \n" + 
-				"where p.vocab_name='EMAPA' "
-				+ "AND td.term_key>"+start+" AND td.term_key<="+stop;
-
-		ResultSet rs = ex.executeProto(query);
-		List<Map<String, Object>> docs = new ArrayList<>();
-		while (rs.next()) 
-		{
-			Map<String, Object> doc = new HashMap<>();
-			String uniqueKey = rs.getString("vocab")+"_descendent_"+rs.getString("unique_key");
-			Integer parentKey = rs.getInt("parent_term_key");
-			Integer childKey = rs.getInt("descendent_term_key");
-			String ancestorID = rs.getString("parent_id");
-			String descendantID = rs.getString("descendent_id");
-
-			doc.put(IndexConstants.UNIQUE_KEY,uniqueKey);
-			doc.put(DagEdgeFields.CHILD_TERM_KEY,childKey);
-			doc.put(DagEdgeFields.CHILD_TERM,rs.getString("descendent_term"));
-			doc.put(DagEdgeFields.CHILD_ID, descendantID);
-			doc.put(DagEdgeFields.VOCAB,rs.getString("vocab"));
-			doc.put(DagEdgeFields.PARENT_TERM_KEY,parentKey);
-			doc.put(DagEdgeFields.PARENT_TERM,rs.getString("parent_term"));
-			doc.put(DagEdgeFields.PARENT_ID, ancestorID);
-			doc.put(DagEdgeFields.EDGE_TYPE,DagEdgeFields.DESCENDENT_EDGE_TYPE);
-			
-			// add any EMAPS IDs that can be used to find this edge (This is from a stage-aware traversal
-			// of the DAG, so should only follow valid paths for any given stage.)
-			if (emapsIDs.containsKey(ancestorID) && emapsIDs.get(ancestorID).containsKey(descendantID)) {
-				doc.put(DagEdgeFields.EMAPS_ID, emapsIDs.get(ancestorID).get(descendantID));
+			if ( docs.size() > BUCK_REQUEST_SIZE  ) {
+				writeDocs(docs);
+				docs = new ArrayList<>();
 			}
-            if ( isDoNotWriteDocToES() ) {
-            	Set<String> emapsIds = emapsIDs.get(ancestorID).get(descendantID);
-            	if ( emapsIds != null ) {
-	            	for (String emapsId : emapsIds) {
-	            		addDoc(emapsId, doc);
-	            	}
-            	}
-            }
-			docs.add(doc);
 		}
 		writeDocs(docs);
 	}
+
+	private void processDescendentEdges(int start,int stop) throws Exception {    
+	    // mapping that tells us what EMAPS IDs are valid for looking up the given edge:
+	    //    emapsIDs[EMAPA ancestor ID][EMAPA descendant ID] = set of EMAPS IDs
+	    Map<String,Map<String,Set<String>>> emapsIDs = this.getEmapsMapping(start, stop);
+
+	    String query = "select td.unique_key, p.term_key parent_term_key,\n" + 
+	            "p.term parent_term,\n" + 
+	            "p.primary_id parent_id,\n" + 
+	            "td.descendent_term_key,\n" + 
+	            "td.descendent_term,\n" + 
+	            "td.descendent_primary_id descendent_id,\n" + 
+	            "p.vocab_name vocab " +
+	            "from term p join\n" + 
+	            "term_descendent td on td.term_key=p.term_key \n" + 
+	            "where p.vocab_name='EMAPA' "
+	            + "AND td.term_key>"+start+" AND td.term_key<="+stop;
+
+	    ResultSet rs = ex.executeProto(query);
+	    List<Map<String, Object>> docs = new ArrayList<>();
+	    while (rs.next()) {
+	        Map<String, Object> doc = new HashMap<>();
+	        String uniqueKey = rs.getString("vocab")+"_descendent_"+rs.getString("unique_key");
+	        Integer parentKey = rs.getInt("parent_term_key");
+	        Integer childKey = rs.getInt("descendent_term_key");
+	        String ancestorID = rs.getString("parent_id");
+	        String descendantID = rs.getString("descendent_id");
+
+	        doc.put(IndexConstants.UNIQUE_KEY,uniqueKey);
+	        doc.put(DagEdgeFields.CHILD_TERM_KEY,childKey);
+	        doc.put(DagEdgeFields.CHILD_TERM,rs.getString("descendent_term"));
+	        doc.put(DagEdgeFields.CHILD_ID, descendantID);
+	        doc.put(DagEdgeFields.VOCAB,rs.getString("vocab"));
+	        doc.put(DagEdgeFields.PARENT_TERM_KEY,parentKey);
+	        doc.put(DagEdgeFields.PARENT_TERM,rs.getString("parent_term"));
+	        doc.put(DagEdgeFields.PARENT_ID, ancestorID);
+	        doc.put(DagEdgeFields.EDGE_TYPE,DagEdgeFields.DESCENDENT_EDGE_TYPE);
+
+	        Set<String> emapsIds = null;
+	        if (emapsIDs.containsKey(ancestorID)) {
+	            emapsIds = emapsIDs.get(ancestorID).get(descendantID);
+	        }
+	        if (emapsIds != null && !emapsIds.isEmpty()) {
+	            doc.put(DagEdgeFields.EMAPS_ID, emapsIds);
+	        }
+
+	        if (isDoNotWriteDocToES() && emapsIds != null) {
+	            for (String emapsId : emapsIds) {
+	                addDoc(emapsId, doc);
+	            }
+	        }
+
+	        docs.addAll(flattenArray(doc, DagEdgeFields.EMAPS_ID));
+			if ( docs.size() > BUCK_REQUEST_SIZE  ) {
+				writeDocs(docs);
+				docs = new ArrayList<>();
+			}	        
+	    }
+	    writeDocs(docs);
+	}
+
+	protected List<Map<String, Object>> flattenArray(Map<String, Object> doc, String key) {
+		List<Map<String, Object>> newDocs = new ArrayList<>();
+		
+		Object value = doc.get(key);
+		if (value instanceof Set list && !list.isEmpty()) {
+	        for (Object item : list) {
+	            Map<String, Object> newDoc = deepClone(doc);
+	            newDoc.put(key, item);
+	            newDocs.add(newDoc);
+	        }
+	    } else {
+	    	newDocs.add(doc);
+	    }
+		return newDocs;
+	}
+	
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> deepClone(Map<String, Object> map) {
+	    try {
+	        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	        ObjectOutputStream out = new ObjectOutputStream(bos);
+	        out.writeObject(map);
+	        out.flush();
+
+	        ObjectInputStream in = new ObjectInputStream(
+	            new ByteArrayInputStream(bos.toByteArray())
+	        );
+	        return (Map<String, Object>) in.readObject();
+	    } catch (Exception e) {
+	        throw new RuntimeException(e);
+	    }
+	}		
 
 	/*
 	 * Returns map of term-key to EMAPAInfo
