@@ -174,7 +174,9 @@ public class GxdDagEdgeIndexer extends Indexer {
 	            }
 	        }
 
-	        docs.addAll(flattenArray(doc, DagEdgeFields.EMAPS_ID));
+	        docs.add(doc);
+	        // for LOOKUP JOIN indexed as single EMAPS_ID per row, instead as array of EMAPS_ID
+	        // docs.addAll(flattenArray(doc, DagEdgeFields.EMAPS_ID));
 			if ( docs.size() > BUCK_REQUEST_SIZE  ) {
 				writeDocs(docs);
 				docs = new ArrayList<>();
@@ -183,7 +185,7 @@ public class GxdDagEdgeIndexer extends Indexer {
 	    writeDocs(docs);
 	}
 
-	protected List<Map<String, Object>> flattenArray(Map<String, Object> doc, String key) {
+	private List<Map<String, Object>> flattenArray(Map<String, Object> doc, String key) {
 		List<Map<String, Object>> newDocs = new ArrayList<>();
 		
 		Object value = doc.get(key);
