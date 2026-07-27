@@ -7,13 +7,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // provides methods for fetching certain types of standard data, as a
 // convenience to all the GXD indexers
 public class Fetcher {
 
-	private Logger log = Logger.getLogger(SQLExecutor.class);
+	private Logger log = LoggerFactory.getLogger(this.getClass());
 	private SQLExecutor sql;
 	private Map<String,VocabTermCache> vocabs = new HashMap<String,VocabTermCache>();
 	private Map<String,List<String>> markerSynonyms;
